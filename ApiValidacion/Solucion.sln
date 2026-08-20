@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{6A011D64-EAD2-451F-8D8A-24188E6CCA7D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clases", "Clases\Clases.csproj", "{2FD1660C-3DB9-4601-8A92-59D5F004B52B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiApi", "MiApi\MiApi.csproj", "{23641E38-4E18-4D2F-B2D4-6B17D453F604}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6A011D64-EAD2-451F-8D8A-24188E6CCA7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A011D64-EAD2-451F-8D8A-24188E6CCA7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A011D64-EAD2-451F-8D8A-24188E6CCA7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A011D64-EAD2-451F-8D8A-24188E6CCA7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FD1660C-3DB9-4601-8A92-59D5F004B52B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FD1660C-3DB9-4601-8A92-59D5F004B52B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FD1660C-3DB9-4601-8A92-59D5F004B52B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FD1660C-3DB9-4601-8A92-59D5F004B52B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23641E38-4E18-4D2F-B2D4-6B17D453F604}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23641E38-4E18-4D2F-B2D4-6B17D453F604}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23641E38-4E18-4D2F-B2D4-6B17D453F604}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23641E38-4E18-4D2F-B2D4-6B17D453F604}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
