@@ -133,7 +133,7 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 
 ---
 
-## 📋 Endpoints de las APIs REST
+## Endpoints de las APIs REST
 
 ### API de Gestión (`http://localhost:5001`)
 
