@@ -506,3 +506,487 @@ function calcularPrecioCompra() {
   document.getElementById("resumenDescuento").textContent = `-$${montoDescuento.toLocaleString('es-AR')}`;
   document.getElementById("resumenTotal").textContent = `$${total.toLocaleString('es-AR')}`;
 }
+
+async function procesarCompra() {
+  if (!state.usuarioActivo || state.usuarioActivo.rol !== "Comprador") {
+    alert("Debe seleccionar un usuario con rol Comprador para realizar la compra.");
+    return;
+  }
+
+  if (!state.eventoSeleccionado) return;
+
+  if (state.eventoSeleccionado.cancelado) {
+    alert("No se pueden comprar entradas para un evento cancelado.");
+    return;
+  }
+
+  if (new Date(state.eventoSeleccionado.fecha) < new Date()) {
+    alert("No se pueden comprar entradas para un evento que ya ha finalizado.");
+    return;
+  }
+
+  const selectMod = document.getElementById("selectModalidad");
+  const modId = selectMod.value;
+  const cantidad = parseInt(document.getElementById("inputCantidad").value, 10);
+
+  if (!modId) {
+    alert("Por favor seleccione una modalidad de entrada.");
+    return;
+  }
+
+  if (isNaN(cantidad) || cantidad <= 0) {
+    alert("Ingrese una cantidad valida mayor a 0.");
+    return;
+  }
+
+  const btnConfirmar = document.getElementById("btnConfirmarCompra");
+  btnConfirmar.disabled = true;
+  btnConfirmar.textContent = "Procesando compra...";
+
+  try {
+    const payload = {
+      dniComprador: state.usuarioActivo.dni.toString(),
+      idEvento: state.eventoSeleccionado.id,
+      idModalidad: modId,
+      cantidad: cantidad
+    };
+
+    const res = await fetch(`${API_GESTION}/compras`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Dni": state.usuarioActivo.dni.toString()
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "No se pudo completar la compra.");
+    }
+
+    mostrarModalCompraExitosa(data);
+    cargarDetalleDesdeUrl();
+
+  } catch (err) {
+    alert(`Error en la compra: ${err.message}`);
+  } finally {
+    btnConfirmar.disabled = false;
+    btnConfirmar.textContent = "Confirmar Compra";
+  }
+}
+
+function mostrarModalCompraExitosa(compra) {
+  state.compraActual = compra;
+
+  document.getElementById("modalCompraId").textContent = compra.id;
+  document.getElementById("modalCompraTotal").textContent = `$${compra.total.toLocaleString('es-AR')}`;
+
+  const container = document.getElementById("modalCodigosEntradas");
+  container.innerHTML = "";
+
+  compra.entradas.forEach(e => {
+    const tag = document.createElement("span");
+    tag.className = "ticket-code-tag";
+    tag.textContent = e.codigo;
+    container.appendChild(tag);
+  });
+
+  const modal = document.getElementById("modalCompraExitosa");
+  modal.classList.add("active");
+
+  const cerrarModal = () => modal.classList.remove("active");
+  document.getElementById("btnCerrarModalCompra").onclick = cerrarModal;
+  document.getElementById("btnCerrarModal").onclick = cerrarModal;
+
+  const btnVerDetalle = document.getElementById("btnIrAConsultaCompra");
+  if (btnVerDetalle) {
+    btnVerDetalle.onclick = () => {
+      window.location.href = `consultar-compra.html?id=${compra.id}`;
+    };
+  }
+}
+
+function inicializarConsultaCompra() {
+  actualizarMisComprasRapidas();
+
+  document.getElementById("btnBuscarCompra")?.addEventListener("click", () => buscarCompra());
+  document.getElementById("inputBuscarCompraId")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      buscarCompra();
+    }
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  const compraId = params.get("id");
+  if (compraId) {
+    document.getElementById("inputBuscarCompraId").value = compraId;
+    buscarCompra(compraId);
+  }
+}
+
+async function buscarCompra(compraIdManual = null) {
+  const input = document.getElementById("inputBuscarCompraId");
+  const id = compraIdManual || input.value.trim();
+
+  if (!id) {
+    alert("Por favor ingrese o seleccione un identificador de compra.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_GESTION}/compras/${id}`);
+    if (!res.ok) {
+      if (res.status === 404) throw new Error("Compra no encontrada.");
+      throw new Error("Error al consultar la compra.");
+    }
+
+    const compra = await res.json();
+
+    if (state.usuarioActivo?.rol === "Comprador" && compra.dniComprador.toString() !== state.usuarioActivo.dni.toString()) {
+      document.getElementById("detalleCompraResultado").style.display = "none";
+      alert("Acceso denegado: Esta compra no pertenece al usuario activo.");
+      return;
+    }
+
+    renderizarDetalleCompra(compra);
+
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+}
+
+function renderizarDetalleCompra(compra) {
+  document.getElementById("detalleCompraResultado").style.display = "block";
+  document.getElementById("inputBuscarCompraId").value = compra.id;
+
+  document.getElementById("compraInfoId").textContent = compra.id;
+  document.getElementById("compraInfoEvento").textContent = compra.nombreEvento;
+  document.getElementById("compraInfoModalidad").textContent = `${compra.nombreModalidad} (${compra.cantidad} entradas)`;
+  document.getElementById("compraInfoTotal").textContent = `$${compra.total.toLocaleString('es-AR')}`;
+
+  const tbody = document.getElementById("entradasCompraTbody");
+  tbody.innerHTML = "";
+
+  const esDuenio = state.usuarioActivo?.dni?.toString() === compra.dniComprador;
+  const esComprador = state.usuarioActivo?.rol === "Comprador";
+
+  compra.entradas.forEach(entrada => {
+    const tr = document.createElement("tr");
+
+    let estadoBadge = `<span class="badge badge-success">Disponible</span>`;
+    if (entrada.cancelada) {
+      estadoBadge = `<span class="badge badge-danger">Cancelada</span>`;
+    } else if (entrada.usada) {
+      const fechaUso = entrada.fechaUso ? new Date(entrada.fechaUso).toLocaleString("es-AR") : "En puerta";
+      estadoBadge = `<span class="badge badge-secondary">Usada (${fechaUso})</span>`;
+    }
+
+    let btnCancelarHtml = "-";
+    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
+      btnCancelarHtml = `
+        <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
+          Cancelar Entrada
+        </button>
+      `;
+    }
+
+    tr.innerHTML = `
+      <td><span class="ticket-code-tag">${entrada.codigo}</span></td>
+      <td>${entrada.nombreModalidad}</td>
+      <td>$${entrada.precioUnitario.toLocaleString('es-AR')}</td>
+      <td>${estadoBadge}</td>
+      <td>${btnCancelarHtml}</td>
+    `;
+
+    const btn = tr.querySelector(".btn-cancelar-entrada");
+    if (btn) {
+      btn.addEventListener("click", () => cancelarEntradaComprada(entrada.codigo, compra.id));
+    }
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function cancelarEntradaComprada(codigo, compraId) {
+  if (!confirm(`Desea cancelar la entrada con codigo ${codigo}?\nEl cupo se restablecera y la entrada ya no podra ser utilizada.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_GESTION}/entradas/${codigo}`, {
+      method: "DELETE",
+      headers: {
+        "X-Dni": state.usuarioActivo.dni.toString()
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "No se pudo cancelar la entrada.");
+    }
+
+    alert(data.mensaje || "Entrada cancelada con exito.");
+    buscarCompra(compraId);
+
+  } catch (err) {
+    alert(`Error al cancelar entrada: ${err.message}`);
+  }
+}
+
+async function actualizarMisComprasRapidas() {
+  const cont = document.getElementById("misComprasBotones");
+  if (!cont) return;
+
+  cont.innerHTML = "";
+
+  if (!state.usuarioActivo || state.usuarioActivo.rol !== "Comprador") {
+    cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>El historial de compras es exclusivo para cuentas con rol Comprador.</span>";
+    return;
+  }
+
+  cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>Cargando compras del usuario...</span>";
+
+  try {
+    const res = await fetch(`${API_GESTION}/compras?dni=${state.usuarioActivo.dni}`);
+    if (!res.ok) throw new Error("Error al obtener compras.");
+    const comprasUsuario = await res.json();
+
+    cont.innerHTML = "";
+
+    if (!comprasUsuario || comprasUsuario.length === 0) {
+      cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>No tienes compras registradas con este usuario todavia.</span>";
+      return;
+    }
+
+    comprasUsuario.slice(0, 8).forEach(compra => {
+      const btn = document.createElement("button");
+      btn.className = "btn btn-outline btn-sm font-mono";
+      btn.textContent = `${compra.id.substring(0, 8)}... (${compra.nombreEvento})`;
+      btn.title = `ID: ${compra.id} - ${compra.nombreEvento} (${compra.cantidad} entradas)`;
+      btn.addEventListener("click", () => {
+        buscarCompra(compra.id);
+      });
+      cont.appendChild(btn);
+    });
+
+  } catch (err) {
+    console.error("Error al consultar compras del usuario:", err);
+    cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>No se pudieron cargar las compras del usuario activo.</span>";
+  }
+}
+
+async function inicializarPuerta() {
+  try {
+    const res = await fetch(`${API_GESTION}/eventos`);
+    if (res.ok) {
+      state.eventos = await res.json();
+      const sel = document.getElementById("puertaEventoSelect");
+      if (sel) {
+        sel.innerHTML = `<option value="">Cualquier evento (autodetectar)</option>`;
+        state.eventos.forEach(ev => {
+          const opt = document.createElement("option");
+          opt.value = ev.id;
+          opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : 'Disponible'})`;
+          sel.appendChild(opt);
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error al cargar eventos para puerta:", err);
+  }
+
+  document.getElementById("btnValidarEntrada")?.addEventListener("click", validarEntradaEnPuerta);
+  document.getElementById("doorTicketInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      validarEntradaEnPuerta();
+    }
+  });
+}
+
+async function validarEntradaEnPuerta() {
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Acceso denegado: El control de acceso en puerta es exclusivo para usuarios con rol Organizador.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  const input = document.getElementById("doorTicketInput");
+  const codigo = input.value.trim().toUpperCase();
+  const selectEvento = document.getElementById("puertaEventoSelect");
+  const idEvento = selectEvento.value || null;
+
+  if (!codigo) {
+    alert("Por favor ingrese el codigo de 6 caracteres de la entrada.");
+    input.focus();
+    return;
+  }
+
+  const btn = document.getElementById("btnValidarEntrada");
+  btn.disabled = true;
+  btn.textContent = "Validando codigo...";
+
+  try {
+    const payload = {
+      codigo: codigo,
+      idEvento: idEvento
+    };
+
+    const res = await fetch(`${API_VALIDACION}/validaciones`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const resultado = await res.json();
+    mostrarResultadoValidacion(resultado);
+    registrarHistorialValidacion(resultado);
+
+    input.value = "";
+    input.focus();
+
+  } catch (err) {
+    mostrarResultadoValidacion({
+      exitoso: false,
+      mensaje: `Error al conectar con la API de Validacion (:5002): ${err.message}`
+    });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Validar Ingreso";
+  }
+}
+
+function mostrarResultadoValidacion(res) {
+  const card = document.getElementById("validationResultCard");
+  card.style.display = "block";
+
+  if (res.exitoso) {
+    card.className = "validation-result-card success";
+    card.innerHTML = `
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Acceso Autorizado
+      </div>
+      <div class="result-title">Ingreso Permitido</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item">
+          <strong>Codigo de Entrada</strong>
+          <span class="ticket-code-tag">${res.codigo || "-"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Evento</strong>
+          <span>${res.nombreEvento || "-"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Modalidad</strong>
+          <span>${res.nombreModalidad || "-"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Hora de Ingreso</strong>
+          <span>${new Date().toLocaleTimeString("es-AR")}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    card.className = "validation-result-card error";
+    card.innerHTML = `
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        Acceso Denegado
+      </div>
+      <div class="result-title">Entrada Rechazada</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item">
+          <strong>Codigo presentado</strong>
+          <span class="ticket-code-tag">${res.codigo || "-"}</span>
+        </div>
+        <div class="result-detail-item" style="grid-column: 1 / -1;">
+          <strong>Motivo del rechazo</strong>
+          <span style="font-weight: 600;">${res.mensaje}</span>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function registrarHistorialValidacion(res) {
+  const hora = new Date().toLocaleTimeString("es-AR");
+  state.historialValidaciones.unshift({
+    hora: hora,
+    codigo: res.codigo || "-",
+    evento: res.nombreEvento ? `${res.nombreEvento} (${res.nombreModalidad || ""})` : "-",
+    exitoso: res.exitoso,
+    mensaje: res.mensaje
+  });
+
+  if (state.historialValidaciones.length > 10) {
+    state.historialValidaciones.pop();
+  }
+
+  const tbody = document.getElementById("historialValidacionesBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = state.historialValidaciones.map(item => `
+    <tr>
+      <td>${item.hora}</td>
+      <td><span class="ticket-code-tag">${item.codigo}</span></td>
+      <td>${item.evento}</td>
+      <td>
+        <span class="badge ${item.exitoso ? 'badge-success' : 'badge-danger'}">
+          ${item.exitoso ? 'Autorizado' : 'Rechazado'}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function inicializarGestionEventos() {
+  await cargarEventosGestion();
+  inicializarMapaCrearEvento();
+
+  document.getElementById("formCrearEvento")?.addEventListener("submit", crearNuevoEvento);
+  document.getElementById("formAgregarModalidad")?.addEventListener("submit", agregarModalidadAEvento);
+  document.getElementById("btnBuscarLugarMapa")?.addEventListener("click", buscarLugarEnMapa);
+
+  document.getElementById("cancelarEventoSelect")?.addEventListener("change", renderizarModalidadesParaCancelar);
+  document.getElementById("btnCancelarEventoSeleccionado")?.addEventListener("click", () => {
+    const sel = document.getElementById("cancelarEventoSelect");
+    const ev = state.eventos.find(e => e.id === sel?.value);
+    if (ev) {
+      cancelarEvento(ev.id, ev.nombre);
+    }
+  });
+}
+
+async function cargarEventosGestion() {
+  try {
+    const res = await fetch(`${API_GESTION}/eventos`);
+    if (!res.ok) throw new Error("Error al obtener eventos.");
+    state.eventos = await res.json();
+
+    const selects = ["modalidadEventoSelect", "cancelarEventoSelect"];
+    selects.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = "";
+      state.eventos.forEach(ev => {
+        const opt = document.createElement("option");
+        opt.value = ev.id;
+        opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : 'Disponible'})`;
+        sel.appendChild(opt);
+      });
+    });
+
+    renderizarModalidadesParaCancelar();
+  } catch (err) {
+    console.error("Error al cargar eventos para gestion:", err);
+  }
+}
