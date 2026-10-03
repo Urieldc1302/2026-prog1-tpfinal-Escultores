@@ -1,5 +1,5 @@
-const API_GESTION = "http://localhost:5001/api";
-const API_VALIDACION = "http://localhost:5002/api";
+const API_GESTION = "http://localhost:5092/api";
+const API_VALIDACION = "http://localhost:5291/api";
 
 const state = {
   usuarios: [],
