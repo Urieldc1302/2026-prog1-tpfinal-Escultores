@@ -5,7 +5,7 @@
 
 ---
 
-## 📌 Descripción General
+## Descripción General
 
 El sistema reemplaza la gestión tradicional de venta de entradas con Excel y WhatsApp por una solución moderna compuesta por **dos APIs REST independientes que comparten la misma información persistida en disco (sin base de datos central)** y una **aplicación web frontend**:
 
@@ -34,7 +34,7 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
 
 ---
 
-## 📂 Estructura del Repositorio
+## Estructura del Repositorio
 
 ```text
 programacionTrabajo/
@@ -66,7 +66,7 @@ programacionTrabajo/
 
 ---
 
-## 🚀 Cómo Ejecutar el Proyecto
+## Cómo Ejecutar el Proyecto
 
 ### Requisitos Previos
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) instalado.
@@ -114,7 +114,7 @@ Abra directamente el archivo `programacionTrabajo/CarpetaFrontend/index.html` en
 
 ---
 
-## 👥 Usuarios Precargados (`usuarios.json`)
+## Usuarios Precargados (`usuarios.json`)
 
 El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su DNI (sin contraseñas):
 
@@ -161,7 +161,7 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 
 ---
 
-## 🎯 Reglas de Negocio Implementadas y Verificadas
+## Reglas de Negocio Implementadas y Verificadas
 
 1. **Cupo Máximo:** No se puede comprar si la cantidad solicitada supera el `cupoDisponible`.
 2. **Eventos y Modalidades Cancelados:** Se rechaza cualquier intento de compra para eventos cancelados o modalidades canceladas.
@@ -174,30 +174,3 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 9. **Control de Acceso por Roles:** Los endpoints administrativos (`POST /api/eventos`, `PUT /cancelar`, `/modalidades`, `/reportes/recaudacion`) exigen DNI de un usuario con rol `Organizador` (vía Header `X-Dni`). Si se envía el DNI de un `Comprador`, el servidor responde `403 Forbidden`.
 
 ---
-
-## 🌟 Sección de Promoción y Mejoras de Usabilidad
-
-- **Selector y Buscador de Ubicación en Mapa (Leaflet + Nominatim):** Al crear un evento, el organizador no necesita ingresar latitud y longitud manualmente: puede escribir la dirección o nombre del lugar y buscarlo automáticamente en el mapa mediante el geocodificador Nominatim, o bien hacer clic y arrastrar el pin interactivo directamente en el mapa para ajustar las coordenadas.
-- **Cancelación de Modalidades y Eventos:** Interfaz dedicada para cancelar modalidades individuales o eventos completos, impidiendo compras indebidas y actualizando el catálogo y reportes en tiempo real.
-- **Cancelación de Entrada Individual:** Un comprador puede cancelar una entrada individual comprada siempre que **no haya sido validada en puerta** y **la fecha del evento no haya pasado**. Al cancelarse, la entrada queda deshabilitada y el cupo disponible de la modalidad se restablece automáticamente.
-
----
-
-## 🎬 Guión para Video Demostrativo (1 a 2 minutos)
-
-1. **Inicio y Alta de Evento:**
-   - Seleccionar a *Lucía Fernández (Organizador)* en el encabezado.
-   - Ir a la pestaña **⚙️ Gestión de Eventos** y crear un nuevo evento (ej: *"Recital Acústico"* con fecha futura y lugar).
-   - Agregar una modalidad (ej: *"Platea General"*, Precio: $10.000, Cupo: 20).
-2. **Venta de Entradas:**
-   - Cambiar de usuario a *Sofía Gómez (Comprador)*.
-   - Ir a **📅 Catálogo de Eventos**, abrir el evento creado, observar el mapa interactivo y seleccionar 5 entradas para evidenciar el descuento del 15%.
-   - Confirmar la compra y mostrar los códigos de 6 dígitos generados.
-3. **Validación Exitosa en Puerta:**
-   - Ir a la pestaña **🚪 Control de Acceso (Puerta)** (conectada a `ApiValidacion` en el puerto 5002).
-   - Ingresar el primer código de entrada y presionar *Validar Ingreso* -> Se muestra el cartel gigante **VERDE: INGRESO AUTORIZADO**.
-4. **Intento de Doble Validación (Rechazo):**
-   - Presionar nuevamente *Validar Ingreso* con el mismo código -> Se muestra el cartel gigante **ROJO: ACCESO DENEGADO (La entrada ya fue utilizada)**.
-5. **Consulta y Cancelación (Promoción):**
-   - Ir a **🔎 Consultar Compra**, buscar la compra y mostrar que una entrada figura como *Usada* y otra como *Disponible*.
-   - Cancelar una de las entradas disponibles y verificar que el cupo se restablece en el catálogo.
