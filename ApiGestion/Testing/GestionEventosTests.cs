@@ -153,4 +153,113 @@ public class GestionEventosTests
         Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("99999999", RolUsuario.Organizador));
         Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol(null, RolUsuario.Comprador));
     }
+
+    [Test]
+    public void CancelarEntrada_CompradorCancelaEntradaNoUsada_RestauraCupoYMarcaCancelada()
+    {
+        var evento = _eventoService.Crear("Festival Rock", "Desc", DateTime.Now.AddDays(30), "Predio");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "General", 2000m, "General", 10);
+
+        var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 2);
+        var entradaACancelar = compra.Entradas[0];
+
+        var eventoAntes = _eventoService.ObtenerPorId(evento.Id)!;
+        Assert.That(eventoAntes.ObtenerModalidadPorId(mod.Id)!.CupoDisponible, Is.EqualTo(8));
+
+        var entradaCancelada = _compraService.CancelarEntrada(entradaACancelar.Codigo, "40123456");
+        Assert.That(entradaCancelada.Cancelada, Is.True);
+
+        var eventoDespues = _eventoService.ObtenerPorId(evento.Id)!;
+        Assert.That(eventoDespues.ObtenerModalidadPorId(mod.Id)!.CupoDisponible, Is.EqualTo(9));
+    }
+
+    [Test]
+    public void CancelarEntrada_EntradaYaUsada_LanzaExcepcion()
+    {
+        var evento = _eventoService.Crear("Fiesta", "Desc", DateTime.Now.AddDays(5), "Club");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "VIP", 3000m, "VIP", 10);
+
+        var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
+        var entrada = compra.Entradas[0];
+
+        entrada.MarcarComoUsada();
+        _compraRepo.GuardarCompras(new List<Compra> { compra });
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            _compraService.CancelarEntrada(entrada.Codigo, "40123456");
+        });
+
+        Assert.That(ex!.Message, Does.Contain("ya fue utilizada"));
+    }
+
+    [Test]
+    public void ReporteRecaudacion_CalculaEntradasVendidasYTotalesCorrectamente()
+    {
+        var evento = _eventoService.Crear("Conferencia Tech", "Desc", DateTime.Now.AddDays(15), "Centro de Convenciones");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "Pase Completo", 1000m, "Acceso a todo", 20);
+
+        _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 5); // 5 * 1000 * 0.85 = 4250
+
+        var reporte = _eventoService.ObtenerReporteRecaudacion();
+        var repEvento = reporte.Eventos.First(e => e.IdEvento == evento.Id);
+
+        Assert.That(repEvento.EntradasVendidas, Is.EqualTo(5));
+        Assert.That(repEvento.RecaudacionTotal, Is.EqualTo(4250m));
+        Assert.That(repEvento.Compradores, Has.Count.EqualTo(1));
+        Assert.That(repEvento.Compradores[0].Nombre, Does.Contain("Sofía Gómez"));
+        Assert.That(repEvento.Compradores[0].CantidadEntradas, Is.EqualTo(5));
+        Assert.That(reporte.TotalGeneralRecaudado, Is.EqualTo(4250m));
+        Assert.That(reporte.TotalGeneralEntradasVendidas, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void CancelarModalidad_OrganizadorPuedeCancelarModalidad_QuedaMarcadaComoCancelada()
+    {
+        var evento = _eventoService.Crear("Festival Jazz", "Desc", DateTime.Now.AddDays(10), "Club");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "VIP", 4000m, "Beneficios", 20);
+
+        Assert.That(mod.Cancelada, Is.False);
+
+        var modCancelada = _eventoService.CancelarModalidad(evento.Id, mod.Id);
+
+        Assert.That(modCancelada.Cancelada, Is.True);
+        Assert.That(modCancelada.HayCupoDisponible(1), Is.False);
+
+        var eventoRecuperado = _eventoService.ObtenerPorId(evento.Id)!;
+        var modRecuperada = eventoRecuperado.ObtenerModalidadPorId(mod.Id)!;
+        Assert.That(modRecuperada.Cancelada, Is.True);
+    }
+
+    [Test]
+    public void RealizarCompra_ModalidadCancelada_LanzaExcepcion()
+    {
+        var evento = _eventoService.Crear("Show Acrobacias", "Desc", DateTime.Now.AddDays(12), "Circo");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 3000m, "Ubicación", 10);
+
+        _eventoService.CancelarModalidad(evento.Id, mod.Id);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
+        });
+
+        Assert.That(ex!.Message, Does.Contain("cancelada"));
+    }
+
+    [Test]
+    public void CancelarEvento_OrganizadorPuedeCancelarEvento_QuedaMarcadoComoCancelado()
+    {
+        var evento = _eventoService.Crear("Expo Autos", "Desc", DateTime.Now.AddDays(25), "Predio");
+        Assert.That(evento.Cancelado, Is.False);
+        Assert.That(evento.EstaDisponible(), Is.True);
+
+        var evCancelado = _eventoService.Cancelar(evento.Id);
+
+        Assert.That(evCancelado.Cancelado, Is.True);
+        Assert.That(evCancelado.EstaDisponible(), Is.False);
+
+        var evRecuperado = _eventoService.ObtenerPorId(evento.Id)!;
+        Assert.That(evRecuperado.Cancelado, Is.True);
+    }
 }
