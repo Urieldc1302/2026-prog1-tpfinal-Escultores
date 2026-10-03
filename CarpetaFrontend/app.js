@@ -989,4 +989,443 @@ async function cargarEventosGestion() {
   } catch (err) {
     console.error("Error al cargar eventos para gestion:", err);
   }
+
+  }
+
+  async function crearNuevoEvento(e) {
+  e.preventDefault();
+
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Accion restringida: debe operar como Organizador.");
+    return;
+  }
+
+  const nombre = document.getElementById("nuevoEventoNombre").value.trim();
+  const descripcion = document.getElementById("nuevoEventoDescripcion").value.trim();
+  const fecha = document.getElementById("nuevoEventoFecha").value;
+  const lugar = document.getElementById("nuevoEventoLugar").value.trim();
+  const latitud = parseFloat(document.getElementById("nuevoEventoLatitud").value) || -34.6037;
+  const longitud = parseFloat(document.getElementById("nuevoEventoLongitud").value) || -58.3816;
+
+  if (!nombre || !fecha || !lugar) {
+    alert("Complete los campos obligatorios: Nombre, Fecha y Lugar.");
+    return;
+  }
+
+  try {
+    const payload = {
+      nombre,
+      descripcion,
+      fecha: new Date(fecha).toISOString(),
+      lugar,
+      latitud,
+      longitud
+    };
+
+    const res = await fetch(`${API_GESTION}/eventos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Dni": state.usuarioActivo.dni.toString()
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No se pudo crear el evento.");
+
+    alert(`Evento "${data.nombre}" creado exitosamente.`);
+    document.getElementById("formCrearEvento").reset();
+
+    const inputLat = document.getElementById("nuevoEventoLatitud");
+    const inputLng = document.getElementById("nuevoEventoLongitud");
+    if (inputLat) inputLat.value = "-34.6037";
+    if (inputLng) inputLng.value = "-58.3816";
+
+    await cargarEventosGestion();
+
+  } catch (err) {
+    alert(`Error al crear evento: ${err.message}`);
+  }
+}
+
+async function agregarModalidadAEvento(e) {
+  e.preventDefault();
+
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Accion restringida: debe operar como Organizador.");
+    return;
+  }
+
+  const idEvento = document.getElementById("modalidadEventoSelect").value;
+  const nombre = document.getElementById("modalidadNombre").value.trim();
+  const precio = parseFloat(document.getElementById("modalidadPrecio").value);
+  const cupoMaximo = parseInt(document.getElementById("modalidadCupo").value, 10);
+  const beneficios = document.getElementById("modalidadBeneficios").value.trim();
+
+  if (!idEvento || !nombre || isNaN(precio) || isNaN(cupoMaximo)) {
+    alert("Complete los campos obligatorios de la modalidad.");
+    return;
+  }
+
+  try {
+    const payload = { nombre, precio, beneficios, cupoMaximo };
+
+    const res = await fetch(`${API_GESTION}/eventos/${idEvento}/modalidades`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Dni": state.usuarioActivo.dni.toString()
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No se pudo agregar la modalidad.");
+
+    alert(`Modalidad "${data.nombre}" agregada exitosamente.`);
+    document.getElementById("formAgregarModalidad").reset();
+    await cargarEventosGestion();
+
+  } catch (err) {
+    alert(`Error al agregar modalidad: ${err.message}`);
+  }
+}
+
+async function cancelarEvento(idEvento, nombreEvento) {
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Accion restringida: debe operar como Organizador.");
+    return;
+  }
+
+  if (!confirm(`Esta seguro de cancelar el evento "${nombreEvento}"?\nYa no se podran vender mas entradas.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_GESTION}/eventos/${idEvento}/cancelar`, {
+      method: "PUT",
+      headers: {
+        "X-Dni": state.usuarioActivo.dni.toString()
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No se pudo cancelar el evento.");
+
+    alert(data.mensaje || "Evento cancelado exitosamente.");
+
+    if (document.getElementById("eventsGrid")) {
+      cargarEventos();
+    }
+    if (document.getElementById("cancelarEventoSelect")) {
+      cargarEventosGestion();
+    }
+    if (document.getElementById("reporteTableBody")) {
+      cargarReporteRecaudacion();
+    }
+    if (document.getElementById("panelCompraComprador")) {
+      cargarDetalleDesdeUrl();
+    }
+
+  } catch (err) {
+    alert(`Error al cancelar evento: ${err.message}`);
+  }
+}
+
+async function cancelarModalidad(idEvento, idModalidad, nombreModalidad) {
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Accion restringida: debe operar como Organizador.");
+    return;
+  }
+
+  if (!confirm(`Desea cancelar la modalidad "${nombreModalidad}"?\nLos compradores ya no podran adquirir entradas de esta modalidad.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_GESTION}/eventos/${idEvento}/modalidades/${idModalidad}/cancelar`, {
+      method: "PUT",
+      headers: {
+        "X-Dni": state.usuarioActivo.dni.toString()
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No se pudo cancelar la modalidad.");
+
+    alert(data.mensaje || "Modalidad cancelada exitosamente.");
+
+    if (document.getElementById("cancelarEventoSelect")) {
+      cargarEventosGestion();
+    }
+    if (document.getElementById("panelCompraComprador")) {
+      cargarDetalleDesdeUrl();
+    }
+
+  } catch (err) {
+    alert(`Error al cancelar modalidad: ${err.message}`);
+  }
+}
+
+function renderizarModalidadesParaCancelar() {
+  const selectEv = document.getElementById("cancelarEventoSelect");
+  const tbody = document.getElementById("tablaModalidadesCancelarBody");
+  if (!tbody) return;
+
+  const eventoId = selectEv ? selectEv.value : null;
+  const evento = state.eventos.find(e => e.id === eventoId);
+
+  tbody.innerHTML = "";
+
+  if (!evento) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Selecciona un evento para gestionar sus modalidades.</td></tr>`;
+    return;
+  }
+
+  if (!evento.modalidades || evento.modalidades.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Este evento no tiene modalidades registradas aun.</td></tr>`;
+    return;
+  }
+
+  evento.modalidades.forEach(m => {
+    const tr = document.createElement("tr");
+
+    let estadoBadge = `<span class="badge badge-success">Activa</span>`;
+    let btnAccionHtml = `
+      <button class="btn btn-danger btn-sm btn-canc-mod" data-mod-id="${m.id}" data-mod-nombre="${m.nombre}">
+        Cancelar
+      </button>
+    `;
+
+    if (m.cancelada) {
+      estadoBadge = `<span class="badge badge-danger">Cancelada</span>`;
+      btnAccionHtml = `<span style="color: var(--gray-500); font-size: 0.825rem; font-style: italic;">Cancelada</span>`;
+    } else if (evento.cancelado) {
+      btnAccionHtml = `<span style="color: var(--gray-500); font-size: 0.825rem; font-style: italic;">Evento Cancelado</span>`;
+    }
+
+    tr.innerHTML = `
+      <td><strong>${m.nombre}</strong><br><small style="color: var(--gray-500);">${m.beneficios || "Sin beneficios"}</small></td>
+      <td>$${m.precio.toLocaleString('es-AR')}</td>
+      <td>${m.cupoDisponible} / ${m.cupoMaximo}</td>
+      <td>${estadoBadge}</td>
+      <td>${btnAccionHtml}</td>
+    `;
+
+    const btnCanc = tr.querySelector(".btn-canc-mod");
+    if (btnCanc) {
+      btnCanc.addEventListener("click", () => cancelarModalidad(evento.id, m.id, m.nombre));
+    }
+
+    tbody.appendChild(tr);
+  });
+}
+
+function inicializarMapaCrearEvento() {
+  setTimeout(() => {
+    const mapDiv = document.getElementById("mapaCrearEvento");
+    if (!mapDiv) return;
+
+    let defaultLat = parseFloat(document.getElementById("nuevoEventoLatitud")?.value) || -34.6037;
+    let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
+
+    if (!state.mapaCrearEvento) {
+      state.mapaCrearEvento = L.map('mapaCrearEvento', { attributionControl: false }).setView([defaultLat, defaultLng], 13);
+
+      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+      googleCalles.addTo(state.mapaCrearEvento);
+
+      state.markerCrearEvento = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.mapaCrearEvento);
+
+      state.markerCrearEvento.on('dragend', function (event) {
+        const marker = event.target;
+        const position = marker.getLatLng();
+        actualizarUbicacionSeleccionada(position.lat, position.lng, true);
+      });
+
+      state.mapaCrearEvento.on('click', function (e) {
+        state.markerCrearEvento.setLatLng(e.latlng);
+        actualizarUbicacionSeleccionada(e.latlng.lat, e.latlng.lng, true);
+      });
+    } else {
+      state.mapaCrearEvento.invalidateSize();
+      state.mapaCrearEvento.setView([defaultLat, defaultLng], 13);
+      if (state.markerCrearEvento) {
+        state.markerCrearEvento.setLatLng([defaultLat, defaultLng]);
+      }
+    }
+  }, 150);
+}
+
+function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
+  const inputLat = document.getElementById("nuevoEventoLatitud");
+  const inputLng = document.getElementById("nuevoEventoLongitud");
+
+  if (inputLat) inputLat.value = lat.toFixed(6);
+  if (inputLng) inputLng.value = lng.toFixed(6);
+
+  if (buscarNombre) {
+    const inputLugar = document.getElementById("nuevoEventoLugar");
+    if (inputLugar && !inputLugar.value.trim()) {
+      inputLugar.value = `Ubicacion (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    }
+  }
+}
+
+async function buscarLugarEnMapa() {
+  const inputLugar = document.getElementById("nuevoEventoLugar");
+  const query = inputLugar ? inputLugar.value.trim() : "";
+
+  if (!query) {
+    alert("Ingrese una direccion o nombre de lugar para buscar en el mapa.");
+    inputLugar?.focus();
+    return;
+  }
+
+  const btnBuscar = document.getElementById("btnBuscarLugarMapa");
+  const textoOriginal = btnBuscar ? btnBuscar.innerHTML : "";
+  if (btnBuscar) {
+    btnBuscar.disabled = true;
+    btnBuscar.innerHTML = "Buscando...";
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      alert(`No se encontraron coordenadas para "${query}". Puede hacer clic en el mapa para marcar la ubicacion.`);
+      return;
+    }
+
+    const lat = parseFloat(data[0].lat);
+    const lon = parseFloat(data[0].lon);
+
+    if (state.mapaCrearEvento && state.markerCrearEvento) {
+      state.mapaCrearEvento.setView([lat, lon], 15);
+      state.markerCrearEvento.setLatLng([lat, lon]);
+      state.markerCrearEvento.bindPopup(`<strong>Ubicacion seleccionada:</strong><br>${data[0].display_name}`).openPopup();
+    }
+
+    actualizarUbicacionSeleccionada(lat, lon, false);
+
+  } catch (err) {
+    console.error("Error al buscar en mapa:", err);
+    alert("No se pudo conectar con el servicio de busqueda. Puede posicionar el marcador haciendo clic en el mapa.");
+  } finally {
+    if (btnBuscar) {
+      btnBuscar.disabled = false;
+      btnBuscar.innerHTML = textoOriginal;
+    }
+  }
+}
+
+async function cargarReporteRecaudacion() {
+  const tbody = document.getElementById("reporteTableBody");
+  if (!tbody) return;
+
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Acceso denegado: El reporte de recaudacion es exclusivo para usuarios con rol Organizador.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  tbody.innerHTML = "<tr><td colspan='8' style='text-align: center;'>Cargando reporte de recaudacion...</td></tr>";
+
+  try {
+    const res = await fetch(`${API_GESTION}/reportes/recaudacion`, {
+      headers: {
+        "X-Dni": state.usuarioActivo.dni.toString()
+      }
+    });
+
+    if (!res.ok) {
+      if (res.status === 403) throw new Error("Acceso denegado: No tiene permisos de Organizador.");
+      throw new Error("Error al obtener el reporte.");
+    }
+
+    const reporte = await res.json();
+
+    const totalRecaudado = Number(reporte.totalGeneralRecaudado || 0);
+    const totalEntradas = reporte.totalGeneralEntradasVendidas || 0;
+
+    document.getElementById("totalGeneralRecaudado").textContent = `$${totalRecaudado.toLocaleString('es-AR')}`;
+    document.getElementById("totalGeneralEntradas").textContent = totalEntradas;
+
+    tbody.innerHTML = "";
+
+    if (!reporte.eventos || reporte.eventos.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='8' style='text-align: center; color: var(--slate-400);'>No hay eventos registrados.</td></tr>";
+      return;
+    }
+
+    reporte.eventos.forEach(ev => {
+      const tr = document.createElement("tr");
+
+      const esPasado = new Date(ev.fecha) < new Date();
+      let estadoHtml = `<span class="badge badge-success">Activo</span>`;
+      if (ev.cancelado) {
+        estadoHtml = `<span class="badge badge-danger">Cancelado</span>`;
+      } else if (esPasado) {
+        estadoHtml = `<span class="badge badge-secondary">Finalizado</span>`;
+      }
+
+      const modalidades = ev.modalidades || [];
+      let modHtml = modalidades.map(m => {
+        const monto = Number(m.recaudacion ?? m.recaudado ?? 0);
+        return `
+          <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+            <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas ?? 0} vendidas ($${monto.toLocaleString('es-AR')})
+          </div>
+        `;
+      }).join('');
+
+      let compradoresHtml = "-";
+      const compradores = ev.compradores || [];
+      if (compradores.length > 0) {
+        compradoresHtml = compradores.map(c => {
+          const tot = Number(c.total || 0);
+          return `
+            <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+              <strong>${c.nombre}</strong> <small style="color: var(--slate-500);">(${c.cantidadEntradas ?? 0} ent. - $${tot.toLocaleString('es-AR')})</small>
+            </div>
+          `;
+        }).join('');
+      } else {
+        compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
+      }
+
+      let btnCancelarHtml = !ev.cancelado 
+        ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
+        : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
+
+      const evRecaudacion = Number(ev.recaudacionTotal || 0);
+
+      tr.innerHTML = `
+        <td><strong>${ev.nombreEvento}</strong><br><small style="color: var(--slate-500);">${ev.lugar}</small></td>
+        <td>${new Date(ev.fecha).toLocaleDateString('es-AR')}</td>
+        <td>${estadoHtml}</td>
+        <td><strong>${ev.entradasVendidas ?? 0}</strong></td>
+        <td><strong style="color: var(--primary);">$${evRecaudacion.toLocaleString('es-AR')}</strong></td>
+        <td>${modHtml || "-"}</td>
+        <td>${compradoresHtml}</td>
+        <td>${btnCancelarHtml}</td>
+      `;
+
+      const btnCanc = tr.querySelector(".btn-cancelar-ev");
+      if (btnCanc) {
+        btnCanc.addEventListener("click", () => cancelarEvento(ev.idEvento, ev.nombreEvento));
+      }
+
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
 }
