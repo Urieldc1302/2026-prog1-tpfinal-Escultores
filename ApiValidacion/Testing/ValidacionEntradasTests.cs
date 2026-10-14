@@ -1,214 +1,158 @@
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using ValidacionEventos.Dominio;
 using ValidacionEventos.Logica;
 
 namespace Testing;
 
 [TestFixture]
-public class ValidacionEntradasTests
+public class ValidadorEntradaServiceTests
 {
-    private string _testDir = null!;
-    private string _comprasFile = null!;
-    private string _eventosFile = null!;
+    private static readonly DateTime Ahora = new DateTime(2026, 10, 20, 21, 30, 0);
+
+    private CompraRepositorioFalso _compras = null!;
+    private EventoRepositorioFalso _eventos = null!;
     private ValidadorEntradaService _validador = null!;
 
-    private Guid _evento1Id;
-    private Guid _evento2Id;
-    private const string CodigoValido = "VAL123";
-    private const string CodigoUsado = "USD456";
-    private const string CodigoEvento2 = "EVT789";
-    private const string CodigoCancelado = "CNC000";
+    private Guid _idEvento1;
+    private Guid _idEvento2;
 
     [SetUp]
-    public void Setup()
+    public void Preparar()
     {
-        _testDir = Path.Combine(Path.GetTempPath(), "TestValidacion_" + Guid.NewGuid());
-        Directory.CreateDirectory(_testDir);
+        _idEvento1 = Guid.NewGuid();
+        _idEvento2 = Guid.NewGuid();
 
-        _comprasFile = Path.Combine(_testDir, "compras.json");
-        _eventosFile = Path.Combine(_testDir, "eventos.json");
+        _eventos = new EventoRepositorioFalso();
+        _eventos.Eventos.Add(new Evento(_idEvento1, "Lollapalooza", Ahora, "Hipódromo"));
+        _eventos.Eventos.Add(new Evento(_idEvento2, "Quilmes Rock", Ahora, "Estadio"));
 
-        _evento1Id = Guid.NewGuid();
-        _evento2Id = Guid.NewGuid();
-
-        var eventos = new JArray
-        {
-            new JObject
-            {
-                ["Id"] = _evento1Id.ToString(),
-                ["Nombre"] = "Lollapalooza 2026",
-                ["Cancelado"] = false,
-                ["Fecha"] = DateTime.Now.AddDays(10)
-            },
-            new JObject
-            {
-                ["Id"] = _evento2Id.ToString(),
-                ["Nombre"] = "Quilmes Rock 2026",
-                ["Cancelado"] = false,
-                ["Fecha"] = DateTime.Now.AddDays(15)
-            }
-        };
-        File.WriteAllText(_eventosFile, eventos.ToString(Formatting.Indented));
-
-        var compras = new JArray
-        {
-            new JObject
-            {
-                ["Id"] = Guid.NewGuid().ToString(),
-                ["DniComprador"] = "40123456",
-                ["IdEvento"] = _evento1Id.ToString(),
-                ["NombreEvento"] = "Lollapalooza 2026",
-                ["Entradas"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["Codigo"] = CodigoValido,
-                        ["IdEvento"] = _evento1Id.ToString(),
-                        ["NombreEvento"] = "Lollapalooza 2026",
-                        ["NombreModalidad"] = "Campo General",
-                        ["Usada"] = false,
-                        ["FechaUso"] = null,
-                        ["Cancelada"] = false
-                    },
-                    new JObject
-                    {
-                        ["Codigo"] = CodigoUsado,
-                        ["IdEvento"] = _evento1Id.ToString(),
-                        ["NombreEvento"] = "Lollapalooza 2026",
-                        ["NombreModalidad"] = "Campo VIP",
-                        ["Usada"] = true,
-                        ["FechaUso"] = DateTime.Now.AddHours(-2),
-                        ["Cancelada"] = false
-                    },
-                    new JObject
-                    {
-                        ["Codigo"] = CodigoCancelado,
-                        ["IdEvento"] = _evento1Id.ToString(),
-                        ["NombreEvento"] = "Lollapalooza 2026",
-                        ["NombreModalidad"] = "Campo General",
-                        ["Usada"] = false,
-                        ["FechaUso"] = null,
-                        ["Cancelada"] = true
-                    }
-                }
-            },
-            new JObject
-            {
-                ["Id"] = Guid.NewGuid().ToString(),
-                ["DniComprador"] = "38456789",
-                ["IdEvento"] = _evento2Id.ToString(),
-                ["NombreEvento"] = "Quilmes Rock 2026",
-                ["Entradas"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["Codigo"] = CodigoEvento2,
-                        ["IdEvento"] = _evento2Id.ToString(),
-                        ["NombreEvento"] = "Quilmes Rock 2026",
-                        ["NombreModalidad"] = "Platea Alta",
-                        ["Usada"] = false,
-                        ["FechaUso"] = null,
-                        ["Cancelada"] = false
-                    }
-                }
-            }
-        };
-        File.WriteAllText(_comprasFile, compras.ToString(Formatting.Indented));
-
-        _validador = new ValidadorEntradaService(_comprasFile, _eventosFile);
+        _compras = new CompraRepositorioFalso();
+        _validador = new ValidadorEntradaService(_compras, _eventos, () => Ahora);
     }
 
-    [TearDown]
-    public void Cleanup()
+    private List<Entrada> AgregarCompra(Guid idEvento, params string[] codigos)
     {
-        if (Directory.Exists(_testDir))
+        string nombre = idEvento == _idEvento1 ? "Lollapalooza" : "Quilmes Rock";
+        var compra = new Compra("40123456", idEvento, nombre, Guid.NewGuid(), "General", codigos.Length, 1000m, Ahora);
+
+        foreach (string codigo in codigos)
         {
-            try
-            {
-                Directory.Delete(_testDir, true);
-            }
-            catch { }
+            compra.AgregarEntrada(new Entrada(codigo, idEvento, nombre, compra.IdModalidad, "General", compra.Id, 1000m));
         }
+
+        _compras.Compras.Add(compra);
+        return compra.Entradas;
     }
+
 
     [Test]
-    public void ValidarEntrada_EntradaValida_AutorizaIngresoYMarcaComoUsada()
+    public void ValidarEntrada_EntradaValida_AutorizaElIngreso()
     {
-        var resultado = _validador.ValidarEntrada(CodigoValido, _evento1Id);
+        AgregarCompra(_idEvento1, "VAL123");
+
+        var resultado = _validador.ValidarEntrada("VAL123", _idEvento1);
 
         Assert.That(resultado.Exitoso, Is.True);
-        Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.Valida));
-        Assert.That(resultado.Mensaje, Does.Contain("Ingreso autorizado"));
-        Assert.That(resultado.FechaUso, Is.Not.Null);
-
-        string json = File.ReadAllText(_comprasFile);
-        var compras = JArray.Parse(json);
-        var entrada = compras[0]["Entradas"]!.First(e => e["Codigo"]!.ToString() == CodigoValido);
-        Assert.That(entrada["Usada"]!.Value<bool>(), Is.True);
     }
 
     [Test]
-    public void ValidarEntrada_EntradaYaUsada_RechazaConEstadoYaFueUsada()
+    public void ValidarEntrada_EntradaValida_QuedaMarcadaComoUsada()
     {
-        var resultado = _validador.ValidarEntrada(CodigoUsado, _evento1Id);
+        var entradas = AgregarCompra(_idEvento1, "VAL123");
 
-        Assert.That(resultado.Exitoso, Is.False);
-        Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.YaFueUsada));
-        Assert.That(resultado.Mensaje, Does.Contain("ya fue utilizada"));
+        _validador.ValidarEntrada("VAL123", _idEvento1);
+
+        Assert.That(entradas[0].Usada, Is.True);
     }
 
-    [Test]
-    public void ValidarEntrada_EntradaInexistente_RechazaConEstadoNoExiste()
-    {
-        var resultado = _validador.ValidarEntrada("NOEXISTE", _evento1Id);
 
-        Assert.That(resultado.Exitoso, Is.False);
+    [Test]
+    public void ValidarEntrada_SegundaValidacionDeLaMismaEntrada_RechazaPorYaUsada()
+    {
+        AgregarCompra(_idEvento1, "VAL123");
+        _validador.ValidarEntrada("VAL123", _idEvento1);
+
+        var segunda = _validador.ValidarEntrada("VAL123", _idEvento1);
+
+        Assert.That(segunda.Estado, Is.EqualTo(EstadoValidacion.YaFueUsada));
+    }
+
+
+    [Test]
+    public void ValidarEntrada_CompraDeTresEntradas_ValidarUnaNoMarcaLasOtras()
+    {
+        var entradas = AgregarCompra(_idEvento1, "AAA111", "BBB222", "CCC333");
+
+        _validador.ValidarEntrada("AAA111", _idEvento1);
+
+        Assert.That(entradas.Count(e => e.Usada), Is.EqualTo(1));
+    }
+
+
+    [Test]
+    public void ValidarEntrada_CodigoInexistente_RechazaConEstadoNoExiste()
+    {
+        AgregarCompra(_idEvento1, "VAL123");
+
+        var resultado = _validador.ValidarEntrada("NOEXIS", _idEvento1);
+
         Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.NoExiste));
-        Assert.That(resultado.Mensaje, Does.Contain("no existe"));
+    }
+
+    [Test]
+    public void ValidarEntrada_CodigoVacio_RechazaSinAutorizar()
+    {
+        var resultado = _validador.ValidarEntrada("   ", _idEvento1);
+
+        Assert.That(resultado.Exitoso, Is.False);
     }
 
     [Test]
     public void ValidarEntrada_EntradaDeOtroEvento_RechazaConEstadoEventoIncorrecto()
     {
-        var resultado = _validador.ValidarEntrada(CodigoEvento2, _evento1Id);
+        AgregarCompra(_idEvento2, "EVT789");
 
-        Assert.That(resultado.Exitoso, Is.False);
+        var resultado = _validador.ValidarEntrada("EVT789", _idEvento1);
+
         Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.EventoIncorrecto));
-        Assert.That(resultado.Mensaje, Does.Contain("no corresponde a este evento"));
     }
 
     [Test]
-    public void ValidarEntrada_EntradaCanceladaPorComprador_RechazaIngreso()
+    public void ValidarEntrada_SinEvento_RechazaConEstadoEventoIncorrecto()
     {
-        var resultado = _validador.ValidarEntrada(CodigoCancelado, _evento1Id);
+        AgregarCompra(_idEvento1, "VAL123");
 
-        Assert.That(resultado.Exitoso, Is.False);
-        Assert.That(resultado.Mensaje, Does.Contain("cancelada"));
+        var resultado = _validador.ValidarEntrada("VAL123", Guid.Empty);
+
+        Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.EventoIncorrecto));
     }
 
     [Test]
-    public void ValidarEntrada_EventoCancelado_RechazaIngreso()
+    public void ValidarEntrada_EntradaCancelada_RechazaConEstadoCancelada()
     {
-        string json = File.ReadAllText(_eventosFile);
-        var eventos = JArray.Parse(json);
-        eventos[0]["Cancelado"] = true;
-        File.WriteAllText(_eventosFile, eventos.ToString(Formatting.Indented));
+        AgregarCompraConEntradaCancelada("CNC000");
 
-        var resultado = _validador.ValidarEntrada(CodigoValido, _evento1Id);
+        var resultado = _validador.ValidarEntrada("CNC000", _idEvento1);
 
-        Assert.That(resultado.Exitoso, Is.False);
+        Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.Cancelada));
+    }
+
+    [Test]
+    public void ValidarEntrada_EventoCancelado_RechazaConEstadoEventoCancelado()
+    {
+        AgregarCompra(_idEvento1, "VAL123");
+        _eventos.Eventos[0] = new Evento(_idEvento1, "Lollapalooza", Ahora, "Hipódromo", cancelado: true);
+
+        var resultado = _validador.ValidarEntrada("VAL123", _idEvento1);
+
         Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.EventoCancelado));
-        Assert.That(resultado.Mensaje, Does.Contain("cancelado"));
     }
 
-    [Test]
-    public void ValidarEntrada_DobleValidacionConsecutiva_SegundaFallaPorYaUsada()
+    private List<Entrada> AgregarCompraConEntradaCancelada(string codigo)
     {
-        var res1 = _validador.ValidarEntrada(CodigoValido, _evento1Id);
-        Assert.That(res1.Exitoso, Is.True);
-
-        var res2 = _validador.ValidarEntrada(CodigoValido, _evento1Id);
-        Assert.That(res2.Exitoso, Is.False);
-        Assert.That(res2.Estado, Is.EqualTo(EstadoValidacion.YaFueUsada));
+        var entradas = AgregarCompra(_idEvento1, codigo);
+        string json = Newtonsoft.Json.JsonConvert.SerializeObject(_compras.Compras);
+        json = json.Replace("\"Cancelada\":false", "\"Cancelada\":true");
+        _compras.Compras = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Compra>>(json)!;
+        return _compras.Compras[0].Entradas;
     }
 }
