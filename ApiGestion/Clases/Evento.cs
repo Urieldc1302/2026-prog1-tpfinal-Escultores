@@ -1,16 +1,19 @@
+using GestionEventos.Logica.Excepciones;
+using Newtonsoft.Json;
+
 namespace GestionEventos.Logica;
 
 public class Evento
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string Nombre { get; set; } = string.Empty;
-    public string Descripcion { get; set; } = string.Empty;
-    public DateTime Fecha { get; set; }
-    public string Lugar { get; set; } = string.Empty;
-    public double? Latitud { get; set; }
-    public double? Longitud { get; set; }
-    public bool Cancelado { get; set; }
-    public List<Modalidad> Modalidades { get; set; } = new List<Modalidad>();
+    [JsonProperty] public Guid Id { get; private set; } = Guid.NewGuid();
+    [JsonProperty] public string Nombre { get; private set; } = string.Empty;
+    [JsonProperty] public string Descripcion { get; private set; } = string.Empty;
+    [JsonProperty] public DateTime Fecha { get; private set; }
+    [JsonProperty] public string Lugar { get; private set; } = string.Empty;
+    [JsonProperty] public double? Latitud { get; private set; }
+    [JsonProperty] public double? Longitud { get; private set; }
+    [JsonProperty] public bool Cancelado { get; private set; }
+    [JsonProperty] public List<Modalidad> Modalidades { get; private set; } = new List<Modalidad>();
 
     public Evento()
     {
@@ -18,15 +21,7 @@ public class Evento
 
     public Evento(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            throw new ArgumentException("El nombre del evento no puede estar vacío.");
-        }
-
-        if (string.IsNullOrWhiteSpace(lugar))
-        {
-            throw new ArgumentException("El lugar del evento no puede estar vacío.");
-        }
+        ValidarDatos(nombre, lugar);
 
         Id = Guid.NewGuid();
         Nombre = nombre.Trim();
@@ -39,30 +34,29 @@ public class Evento
         Modalidades = new List<Modalidad>();
     }
 
+    public static DateTime ALocal(DateTime fecha)
+    {
+        return fecha.Kind == DateTimeKind.Utc ? fecha.ToLocalTime() : fecha;
+    }
+
     public void AgregarModalidad(Modalidad modalidad)
     {
         if (modalidad == null)
         {
-            throw new ArgumentNullException(nameof(modalidad), "La modalidad no puede ser nula.");
+            throw new ReglaNegocioException("La modalidad no puede ser nula.");
         }
 
-        Modalidades ??= new List<Modalidad>();
+        if (Cancelado)
+        {
+            throw new ReglaNegocioException("No se pueden agregar modalidades a un evento cancelado.");
+        }
+
         Modalidades.Add(modalidad);
-    }
-
-    public void EliminarModalidad(Guid idModalidad)
-    {
-        Modalidades?.RemoveAll(m => m.Id == idModalidad);
-    }
-
-    public List<Modalidad> ObtenerModalidades()
-    {
-        return Modalidades ?? new List<Modalidad>();
     }
 
     public Modalidad? ObtenerModalidadPorId(Guid id)
     {
-        return Modalidades?.FirstOrDefault(m => m.Id == id);
+        return Modalidades.FirstOrDefault(m => m.Id == id);
     }
 
     public void Cancelar()
@@ -70,8 +64,38 @@ public class Evento
         Cancelado = true;
     }
 
-    public bool EstaDisponible()
+    public bool YaPaso(DateTime ahora)
     {
-        return !Cancelado && Fecha >= DateTime.Now;
+        return ALocal(Fecha) < ahora;
+    }
+
+    public bool EstaDisponible(DateTime ahora)
+    {
+        return !Cancelado && !YaPaso(ahora);
+    }
+
+    public void Actualizar(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    {
+        ValidarDatos(nombre, lugar);
+
+        Nombre = nombre.Trim();
+        Descripcion = descripcion?.Trim() ?? string.Empty;
+        Fecha = fecha;
+        Lugar = lugar.Trim();
+        Latitud = latitud;
+        Longitud = longitud;
+    }
+
+    private static void ValidarDatos(string nombre, string lugar)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ReglaNegocioException("El nombre del evento no puede estar vacío.");
+        }
+
+        if (string.IsNullOrWhiteSpace(lugar))
+        {
+            throw new ReglaNegocioException("El lugar del evento no puede estar vacío.");
+        }
     }
 }

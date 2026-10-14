@@ -1,5 +1,7 @@
+using GestionEventos.Api.DTOs;
 using GestionEventos.Data;
 using GestionEventos.Logica;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +11,17 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = contexto =>
+    {
+        var mensajes = contexto.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage);
+        return new BadRequestObjectResult(new ErrorResponse(string.Join(" ", mensajes)));
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -57,7 +70,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<PersonaRepository>();
 builder.Services.AddSingleton<EventoRepository>();
 builder.Services.AddSingleton<CompraRepository>();
-builder.Services.AddSingleton<EntradaRepository>();
 builder.Services.AddSingleton<UsuarioService>();
 builder.Services.AddSingleton<EventoService>();
 builder.Services.AddSingleton<CompraService>();

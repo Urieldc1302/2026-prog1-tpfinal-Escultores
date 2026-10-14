@@ -1,51 +1,62 @@
+using GestionEventos.Logica.Excepciones;
+using Newtonsoft.Json;
+
 namespace GestionEventos.Logica;
 
 public class Compra
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string DniComprador { get; set; } = string.Empty;
-    public DateTime FechaCompra { get; set; } = DateTime.Now;
-    public Guid IdEvento { get; set; }
-    public string NombreEvento { get; set; } = string.Empty;
-    public Guid IdModalidad { get; set; }
-    public string NombreModalidad { get; set; } = string.Empty;
-    public int Cantidad { get; set; }
-    public decimal PrecioUnitario { get; set; }
-    public decimal Total { get; set; }
-    public List<Entrada> Entradas { get; set; } = new List<Entrada>();
+    [JsonProperty] public Guid Id { get; private set; } = Guid.NewGuid();
+    [JsonProperty] public string DniComprador { get; private set; } = string.Empty;
+    [JsonProperty] public DateTime FechaCompra { get; private set; }
+    [JsonProperty] public Guid IdEvento { get; private set; }
+    [JsonProperty] public string NombreEvento { get; private set; } = string.Empty;
+    [JsonProperty] public Guid IdModalidad { get; private set; }
+    [JsonProperty] public string NombreModalidad { get; private set; } = string.Empty;
+    [JsonProperty] public int Cantidad { get; private set; }
+
+    [JsonProperty] public decimal PrecioUnitario { get; private set; }
+
+    [JsonProperty] public decimal Total { get; private set; }
+
+    [JsonProperty] public List<Entrada> Entradas { get; private set; } = new List<Entrada>();
 
     public Compra()
     {
     }
 
-    public Compra(string dniComprador, Guid idEvento, string nombreEvento, Guid idModalidad, string nombreModalidad, int cantidad, decimal precioUnitario, decimal total)
+    public Compra(string dniComprador, Guid idEvento, string nombreEvento, Guid idModalidad, string nombreModalidad, int cantidad, decimal precioUnitario, DateTime fechaCompra)
     {
         if (string.IsNullOrWhiteSpace(dniComprador))
         {
-            throw new ArgumentException("El DNI del comprador es obligatorio.");
+            throw new ReglaNegocioException("El DNI del comprador es obligatorio.");
         }
 
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad debe ser mayor a cero.");
+            throw new ReglaNegocioException("La cantidad debe ser mayor a cero.");
         }
 
         Id = Guid.NewGuid();
         DniComprador = dniComprador.Trim();
-        FechaCompra = DateTime.Now;
+        FechaCompra = fechaCompra;
         IdEvento = idEvento;
         NombreEvento = nombreEvento;
         IdModalidad = idModalidad;
         NombreModalidad = nombreModalidad;
         Cantidad = cantidad;
         PrecioUnitario = precioUnitario;
-        Total = total;
+        Total = 0m;
         Entradas = new List<Entrada>();
     }
 
     public void AgregarEntrada(Entrada entrada)
     {
-        Entradas ??= new List<Entrada>();
         Entradas.Add(entrada);
+        RecalcularTotal();
+    }
+
+    public void RecalcularTotal()
+    {
+        Total = Entradas.Where(e => !e.Cancelada).Sum(e => e.PrecioUnitario);
     }
 }

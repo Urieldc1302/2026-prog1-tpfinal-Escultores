@@ -1,17 +1,23 @@
+using GestionEventos.Logica.Excepciones;
+using Newtonsoft.Json;
+
 namespace GestionEventos.Logica;
 
 public class Entrada
 {
-    public string Codigo { get; set; } = string.Empty;
-    public Guid IdEvento { get; set; }
-    public string NombreEvento { get; set; } = string.Empty;
-    public Guid IdModalidad { get; set; }
-    public string NombreModalidad { get; set; } = string.Empty;
-    public Guid IdCompra { get; set; }
-    public decimal PrecioUnitario { get; set; }
-    public bool Usada { get; set; }
-    public DateTime? FechaUso { get; set; }
-    public bool Cancelada { get; set; }
+    [JsonProperty] public string Codigo { get; private set; } = string.Empty;
+    [JsonProperty] public Guid IdEvento { get; private set; }
+    [JsonProperty] public string NombreEvento { get; private set; } = string.Empty;
+    [JsonProperty] public Guid IdModalidad { get; private set; }
+    [JsonProperty] public string NombreModalidad { get; private set; } = string.Empty;
+    [JsonProperty] public Guid IdCompra { get; private set; }
+
+    /// <summary>Precio efectivamente pagado por esta entrada (ya con el descuento por volumen).</summary>
+    [JsonProperty] public decimal PrecioUnitario { get; private set; }
+
+    [JsonProperty] public bool Usada { get; private set; }
+    [JsonProperty] public DateTime? FechaUso { get; private set; }
+    [JsonProperty] public bool Cancelada { get; private set; }
 
     public Entrada()
     {
@@ -21,7 +27,7 @@ public class Entrada
     {
         if (string.IsNullOrWhiteSpace(codigo))
         {
-            throw new ArgumentException("El código de la entrada no puede estar vacío.");
+            throw new ReglaNegocioException("El código de la entrada no puede estar vacío.");
         }
 
         Codigo = codigo.Trim().ToUpperInvariant();
@@ -36,32 +42,32 @@ public class Entrada
         Cancelada = false;
     }
 
-    public void MarcarComoUsada()
+    public void MarcarComoUsada(DateTime fecha)
     {
         if (Cancelada)
         {
-            throw new InvalidOperationException("No se puede marcar como usada una entrada cancelada.");
+            throw new ReglaNegocioException("No se puede marcar como usada una entrada cancelada.");
         }
 
         if (Usada)
         {
-            throw new InvalidOperationException("La entrada ya ha sido utilizada.");
+            throw new ReglaNegocioException("La entrada ya ha sido utilizada.");
         }
 
         Usada = true;
-        FechaUso = DateTime.Now;
+        FechaUso = fecha;
     }
 
     public void CancelarEntrada()
     {
         if (Usada)
         {
-            throw new InvalidOperationException("No se puede cancelar una entrada que ya fue utilizada en la puerta.");
+            throw new ReglaNegocioException("No se puede cancelar una entrada que ya fue utilizada para ingresar al evento.");
         }
 
         if (Cancelada)
         {
-            throw new InvalidOperationException("La entrada ya se encuentra cancelada.");
+            throw new ReglaNegocioException("La entrada ya se encuentra cancelada.");
         }
 
         Cancelada = true;
