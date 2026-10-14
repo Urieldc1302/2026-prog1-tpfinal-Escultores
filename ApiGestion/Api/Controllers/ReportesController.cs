@@ -1,3 +1,4 @@
+using GestionEventos.Api.DTOs;
 using GestionEventos.Logica;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,28 +8,15 @@ namespace GestionEventos.Api.Controllers;
 public class ReportesController : BaseApiController
 {
     private readonly EventoService _eventoService;
-    private readonly UsuarioService _usuarioService;
 
-    public ReportesController(EventoService eventoService, UsuarioService usuarioService)
+    public ReportesController(EventoService eventoService)
     {
         _eventoService = eventoService;
-        _usuarioService = usuarioService;
     }
 
     [HttpGet("recaudacion")]
     public IActionResult Recaudacion()
     {
-        try
-        {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
-
-            var reporte = _eventoService.ObtenerReporteRecaudacion();
-            return Ok(reporte);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
+        return Ejecutar(() => Ok(_eventoService.ObtenerReporteRecaudacion(ObtenerDni()).AResponse()));
     }
 }
