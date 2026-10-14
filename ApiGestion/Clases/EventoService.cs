@@ -1,18 +1,21 @@
-namespace GestionEventos.Logica;
-
 using GestionEventos.Data;
+using GestionEventos.Logica.Excepciones;
+
+namespace GestionEventos.Logica;
 
 public class EventoService
 {
     private readonly EventoRepository _eventoRepository;
     private readonly CompraRepository _compraRepository;
     private readonly UsuarioService _usuarioService;
+    private readonly Func<DateTime> _ahora;
 
-    public EventoService(EventoRepository? eventoRepository = null, CompraRepository? compraRepository = null, UsuarioService? usuarioService = null)
+    public EventoService(EventoRepository eventoRepository, CompraRepository compraRepository, UsuarioService usuarioService, Func<DateTime>? ahora = null)
     {
-        _eventoRepository = eventoRepository ?? new EventoRepository();
-        _compraRepository = compraRepository ?? new CompraRepository();
-        _usuarioService = usuarioService ?? new UsuarioService();
+        _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
+        _compraRepository = compraRepository ?? throw new ArgumentNullException(nameof(compraRepository));
+        _usuarioService = usuarioService ?? throw new ArgumentNullException(nameof(usuarioService));
+        _ahora = ahora ?? (() => DateTime.Now);
     }
 
     public List<Evento> ObtenerTodos()
@@ -20,22 +23,28 @@ public class EventoService
         return _eventoRepository.ObtenerEventos();
     }
 
-    public Evento? ObtenerPorId(Guid id)
+    public List<Evento> ObtenerParaGestion(string? dniSolicitante)
     {
-        return _eventoRepository.ObtenerEventos().FirstOrDefault(e => e.Id == id);
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+        return _eventoRepository.ObtenerEventos();
     }
 
     public List<Evento> ObtenerDisponibles()
     {
-        return _eventoRepository.ObtenerEventos().Where(e => e.EstaDisponible()).ToList();
+        DateTime ahora = _ahora();
+        return _eventoRepository.ObtenerEventos().Where(e => e.EstaDisponible(ahora)).ToList();
     }
 
-    public Evento Crear(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    public Evento ObtenerPorId(Guid id)
     {
-        if (fecha < DateTime.Now)
-        {
-            throw new ArgumentException("La fecha del evento no puede ser anterior a la fecha y hora actual.");
-        }
+        return _eventoRepository.ObtenerEventos().FirstOrDefault(e => e.Id == id)
+            ?? throw new EntidadNoEncontradaException($"No se encontró ningún evento con ID '{id}'.");
+    }
+
+    public Evento Crear(string? dniSolicitante, string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    {
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+        ValidarFechaFutura(fecha);
 
         var nuevoEvento = new Evento(nombre, descripcion, fecha, lugar, latitud, longitud);
         var eventos = _eventoRepository.ObtenerEventos();
@@ -45,46 +54,31 @@ public class EventoService
         return nuevoEvento;
     }
 
-    public Evento Modificar(Guid id, string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    public Evento Modificar(string? dniSolicitante, Guid id, string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
     {
-        var eventos = _eventoRepository.ObtenerEventos();
-        var evento = eventos.FirstOrDefault(e => e.Id == id);
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
 
-        if (evento == null)
-        {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{id}'.");
-        }
+        var eventos = _eventoRepository.ObtenerEventos();
+        var evento = BuscarEvento(eventos, id);
 
         if (evento.Cancelado)
         {
-            throw new InvalidOperationException("No se puede modificar un evento que ya fue cancelado.");
+            throw new ReglaNegocioException("No se puede modificar un evento que ya fue cancelado.");
         }
 
-        if (fecha < DateTime.Now)
-        {
-            throw new ArgumentException("La fecha del evento no puede ser anterior a la fecha y hora actual.");
-        }
+        ValidarFechaFutura(fecha);
 
-        evento.Nombre = nombre.Trim();
-        evento.Descripcion = descripcion?.Trim() ?? string.Empty;
-        evento.Fecha = fecha;
-        evento.Lugar = lugar.Trim();
-        evento.Latitud = latitud;
-        evento.Longitud = longitud;
-
+        evento.Actualizar(nombre, descripcion, fecha, lugar, latitud, longitud);
         _eventoRepository.GuardarEventos(eventos);
         return evento;
     }
 
-    public Evento Cancelar(Guid id)
+    public Evento Cancelar(string? dniSolicitante, Guid id)
     {
-        var eventos = _eventoRepository.ObtenerEventos();
-        var evento = eventos.FirstOrDefault(e => e.Id == id);
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
 
-        if (evento == null)
-        {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{id}'.");
-        }
+        var eventos = _eventoRepository.ObtenerEventos();
+        var evento = BuscarEvento(eventos, id);
 
         if (evento.Cancelado)
         {
@@ -96,20 +90,12 @@ public class EventoService
         return evento;
     }
 
-    public Modalidad AgregarModalidad(Guid idEvento, string nombre, decimal precio, string beneficios, int cupoMaximo)
+    public Modalidad AgregarModalidad(string? dniSolicitante, Guid idEvento, string nombre, decimal precio, string beneficios, int cupoMaximo)
     {
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+
         var eventos = _eventoRepository.ObtenerEventos();
-        var evento = eventos.FirstOrDefault(e => e.Id == idEvento);
-
-        if (evento == null)
-        {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{idEvento}'.");
-        }
-
-        if (evento.Cancelado)
-        {
-            throw new InvalidOperationException("No se pueden agregar modalidades a un evento cancelado.");
-        }
+        var evento = BuscarEvento(eventos, idEvento);
 
         var modalidad = new Modalidad(nombre, precio, beneficios, cupoMaximo);
         evento.AgregarModalidad(modalidad);
@@ -118,100 +104,79 @@ public class EventoService
         return modalidad;
     }
 
-    public Modalidad CancelarModalidad(Guid idEvento, Guid idModalidad)
+    public Modalidad CancelarModalidad(string? dniSolicitante, Guid idEvento, Guid idModalidad)
     {
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+
         var eventos = _eventoRepository.ObtenerEventos();
-        var evento = eventos.FirstOrDefault(e => e.Id == idEvento);
+        var evento = BuscarEvento(eventos, idEvento);
 
-        if (evento == null)
-        {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{idEvento}'.");
-        }
-
-        var modalidad = evento.ObtenerModalidadPorId(idModalidad);
-        if (modalidad == null)
-        {
-            throw new KeyNotFoundException($"No se encontró ninguna modalidad con ID '{idModalidad}' en el evento.");
-        }
+        var modalidad = evento.ObtenerModalidadPorId(idModalidad)
+            ?? throw new EntidadNoEncontradaException($"No se encontró ninguna modalidad con ID '{idModalidad}' en el evento.");
 
         modalidad.Cancelar();
         _eventoRepository.GuardarEventos(eventos);
         return modalidad;
     }
 
-    public ReporteRecaudacionDto ObtenerReporteRecaudacion()
+    public ReporteRecaudacion ObtenerReporteRecaudacion(string? dniSolicitante)
     {
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+
         var eventos = _eventoRepository.ObtenerEventos();
         var compras = _compraRepository.ObtenerCompras();
         var usuarios = _usuarioService.ObtenerTodos();
 
-        var reporte = new ReporteRecaudacionDto();
+        var reporte = new ReporteRecaudacion();
 
         foreach (var evento in eventos)
         {
             var comprasEvento = compras.Where(c => c.IdEvento == evento.Id).ToList();
-
-            var repEvento = new ReporteEventoDto
-            {
-                IdEvento = evento.Id,
-                NombreEvento = evento.Nombre,
-                Fecha = evento.Fecha,
-                Lugar = evento.Lugar,
-                Cancelado = evento.Cancelado,
-                EntradasVendidas = comprasEvento.Sum(c => c.Entradas.Count(e => !e.Cancelada)),
-                RecaudacionTotal = comprasEvento.Sum(c => c.Total)
-            };
+            var repEvento = new ReporteEvento(evento.Id, evento.Nombre, evento.Fecha, evento.Lugar, evento.Cancelado);
 
             foreach (var compra in comprasEvento)
             {
-                int cantActivas = compra.Entradas.Count(e => !e.Cancelada);
-                if (cantActivas > 0)
+                var entradasVigentes = compra.Entradas.Where(e => !e.Cancelada).ToList();
+                if (entradasVigentes.Count == 0)
                 {
-                    var nombreUsuario = usuarios.FirstOrDefault(u => u.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase))?.Nombre ?? $"DNI {compra.DniComprador}";
-                    var existente = repEvento.Compradores.FirstOrDefault(c => c.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase));
-                    if (existente != null)
-                    {
-                        existente.CantidadEntradas += cantActivas;
-                        existente.Total += compra.Total;
-                    }
-                    else
-                    {
-                        repEvento.Compradores.Add(new ReporteCompradorDto
-                        {
-                            Dni = compra.DniComprador,
-                            Nombre = nombreUsuario,
-                            CantidadEntradas = cantActivas,
-                            Total = compra.Total
-                        });
-                    }
+                    continue;
                 }
+
+                string nombreComprador = usuarios.FirstOrDefault(u => u.Dni == compra.DniComprador)?.Nombre
+                                         ?? $"DNI {compra.DniComprador}";
+                repEvento.RegistrarEntradas(compra.DniComprador, nombreComprador, entradasVigentes.Count, entradasVigentes.Sum(e => e.PrecioUnitario));
             }
 
-            foreach (var mod in evento.Modalidades)
+            foreach (var modalidad in evento.Modalidades)
             {
-                var comprasMod = comprasEvento.Where(c => c.IdModalidad == mod.Id).ToList();
-                int vendidas = comprasMod.Sum(c => c.Entradas.Count(e => !e.Cancelada));
-                decimal recaudado = comprasMod.Sum(c => c.Total);
+                var entradasModalidad = comprasEvento
+                    .Where(c => c.IdModalidad == modalidad.Id)
+                    .SelectMany(c => c.Entradas)
+                    .Where(e => !e.Cancelada)
+                    .ToList();
 
-                repEvento.Modalidades.Add(new ReporteModalidadDto
-                {
-                    IdModalidad = mod.Id,
-                    NombreModalidad = mod.Nombre,
-                    PrecioUnitario = mod.Precio,
-                    CupoMaximo = mod.CupoMaximo,
-                    CupoDisponible = mod.CupoDisponible,
-                    EntradasVendidas = vendidas,
-                    Recaudacion = recaudado,
-                    Cancelada = mod.Cancelada
-                });
+                repEvento.Modalidades.Add(new ReporteModalidad(
+                    modalidad.Id, modalidad.Nombre, modalidad.Precio, modalidad.CupoMaximo, modalidad.CupoDisponible,
+                    entradasModalidad.Count, entradasModalidad.Sum(e => e.PrecioUnitario), modalidad.Cancelada));
             }
 
-            reporte.Eventos.Add(repEvento);
+            reporte.AgregarEvento(repEvento);
         }
 
-        reporte.TotalGeneralRecaudado = reporte.Eventos.Sum(e => e.RecaudacionTotal);
-        reporte.TotalGeneralEntradasVendidas = reporte.Eventos.Sum(e => e.EntradasVendidas);
-
         return reporte;
+    }
+
+    private void ValidarFechaFutura(DateTime fecha)
+    {
+        if (Evento.ALocal(fecha) < _ahora())
+        {
+            throw new ReglaNegocioException("La fecha del evento no puede ser anterior a la fecha y hora actual.");
+        }
+    }
+
+    private static Evento BuscarEvento(List<Evento> eventos, Guid id)
+    {
+        return eventos.FirstOrDefault(e => e.Id == id)
+            ?? throw new EntidadNoEncontradaException($"No se encontró ningún evento con ID '{id}'.");
     }
 }

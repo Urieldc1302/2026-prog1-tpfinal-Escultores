@@ -29,8 +29,7 @@ public static class GeneradorCodigoEntrada
         char[] chars = new char[LongitudCodigo];
         for (int i = 0; i < LongitudCodigo; i++)
         {
-            int index = RandomNumberGenerator.GetInt32(Caracteres.Length);
-            chars[i] = Caracteres[index];
+            chars[i] = Caracteres[RandomNumberGenerator.GetInt32(Caracteres.Length)];
         }
         return new string(chars);
     }

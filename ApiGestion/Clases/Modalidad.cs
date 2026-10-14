@@ -1,14 +1,20 @@
+using GestionEventos.Logica.Excepciones;
+using Newtonsoft.Json;
+
 namespace GestionEventos.Logica;
 
 public class Modalidad
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string Nombre { get; set; } = string.Empty;
-    public decimal Precio { get; set; }
-    public string Beneficios { get; set; } = string.Empty;
-    public int CupoMaximo { get; set; }
-    public int CupoDisponible { get; set; }
-    public bool Cancelada { get; set; } = false;
+    public const int CantidadMinimaParaDescuento = 5;
+    public const decimal PorcentajeDescuento = 0.15m;
+
+    [JsonProperty] public Guid Id { get; private set; } = Guid.NewGuid();
+    [JsonProperty] public string Nombre { get; private set; } = string.Empty;
+    [JsonProperty] public decimal Precio { get; private set; }
+    [JsonProperty] public string Beneficios { get; private set; } = string.Empty;
+    [JsonProperty] public int CupoMaximo { get; private set; }
+    [JsonProperty] public int CupoDisponible { get; private set; }
+    [JsonProperty] public bool Cancelada { get; private set; }
 
     public Modalidad()
     {
@@ -18,17 +24,17 @@ public class Modalidad
     {
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre no puede estar vacío o contener solo espacios.");
+            throw new ReglaNegocioException("El nombre de la modalidad no puede estar vacío.");
         }
 
         if (precio <= 0)
         {
-            throw new ArgumentException("El precio debe ser mayor a cero.");
+            throw new ReglaNegocioException("El precio debe ser mayor a cero.");
         }
 
         if (cupoMaximo <= 0)
         {
-            throw new ArgumentException("El cupo máximo debe ser mayor a cero.");
+            throw new ReglaNegocioException("El cupo máximo debe ser mayor a cero.");
         }
 
         Id = Guid.NewGuid();
@@ -54,17 +60,17 @@ public class Modalidad
     {
         if (Cancelada)
         {
-            throw new InvalidOperationException("No se pueden vender entradas para una modalidad cancelada.");
+            throw new ReglaNegocioException($"La modalidad '{Nombre}' fue cancelada y no admite ventas.");
         }
 
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
+            throw new ReglaNegocioException("La cantidad de entradas debe ser mayor que cero.");
         }
 
         if (CupoDisponible < cantidad)
         {
-            throw new InvalidOperationException("No hay suficiente cupo disponible.");
+            throw new CupoInsuficienteException($"No hay suficiente cupo disponible en '{Nombre}'. Cupo restante: {CupoDisponible}.");
         }
 
         CupoDisponible -= cantidad;
@@ -74,7 +80,7 @@ public class Modalidad
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad a restaurar debe ser mayor que cero.");
+            throw new ReglaNegocioException("La cantidad a restaurar debe ser mayor que cero.");
         }
 
         CupoDisponible = Math.Min(CupoMaximo, CupoDisponible + cantidad);
@@ -84,14 +90,16 @@ public class Modalidad
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
+            throw new ReglaNegocioException("La cantidad de entradas debe ser mayor que cero.");
         }
 
-        if (cantidad >= 5)
+        decimal total = Precio * cantidad;
+
+        if (cantidad >= CantidadMinimaParaDescuento)
         {
-            return Math.Round(Precio * cantidad * 0.85m, 2);
+            total = total * (1m - PorcentajeDescuento);
         }
 
-        return Precio * cantidad;
+        return Math.Round(total, 2);
     }
 }
