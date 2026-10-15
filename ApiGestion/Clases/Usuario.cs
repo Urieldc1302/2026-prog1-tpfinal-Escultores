@@ -1,3 +1,4 @@
+using GestionEventos.Logica.Excepciones;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -5,27 +6,19 @@ namespace GestionEventos.Logica;
 
 public class Usuario
 {
-    private string _dni = string.Empty;
-
+    [JsonConverter(typeof(NewtonsoftDniConverter))]
     [JsonProperty("dni")]
-    public object DniRaw
-    {
-        get => _dni;
-        set => _dni = value?.ToString()?.Trim() ?? string.Empty;
-    }
+    public string Dni { get; private set; } = string.Empty;
 
-    [JsonIgnore]
-    public string Dni
-    {
-        get => _dni;
-        set => _dni = value?.Trim() ?? string.Empty;
-    }
+    [JsonProperty("nombre")]
+    public string Nombre { get; private set; } = string.Empty;
 
-    public string Nombre { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
+    [JsonProperty("username")]
+    public string Username { get; private set; } = string.Empty;
 
     [JsonConverter(typeof(StringEnumConverter))]
-    public RolUsuario Rol { get; set; }
+    [JsonProperty("rol")]
+    public RolUsuario Rol { get; private set; }
 
     public Usuario()
     {
@@ -35,27 +28,21 @@ public class Usuario
     {
         if (string.IsNullOrWhiteSpace(dni))
         {
-            throw new ArgumentException("El DNI no puede estar vacío.");
+            throw new ReglaNegocioException("El DNI no puede estar vacío.");
         }
 
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre no puede estar vacío.");
+            throw new ReglaNegocioException("El nombre no puede estar vacío.");
         }
 
-        Dni = dni;
-        Nombre = nombre;
-        Username = username;
+        Dni = dni.Trim();
+        Nombre = nombre.Trim();
+        Username = username?.Trim() ?? string.Empty;
         Rol = rol;
     }
 
-    public bool EsOrganizador()
-    {
-        return Rol == RolUsuario.Organizador;
-    }
+    public bool EsOrganizador() => Rol == RolUsuario.Organizador;
 
-    public bool EsComprador()
-    {
-        return Rol == RolUsuario.Comprador;
-    }
+    public bool EsComprador() => Rol == RolUsuario.Comprador;
 }
