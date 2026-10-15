@@ -72,5 +72,91 @@
         "Cancelada": false
       }
     ]
+  },
+  {
+    "Id": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+    "DniComprador": "38456789",
+    "FechaCompra": "2026-10-03T00:12:42.6561376-03:00",
+    "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+    "NombreEvento": "Concierto Sunset 2026",
+    "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+    "NombreModalidad": "Campo general",
+    "Cantidad": 6,
+    "PrecioUnitario": 20000.0,
+    "Total": 102000.0,
+    "Entradas": [
+      {
+        "Codigo": "7M0RUC",
+        "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "NombreEvento": "Concierto Sunset 2026",
+        "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "NombreModalidad": "Campo general",
+        "IdCompra": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+        "PrecioUnitario": 17000.0,
+        "Usada": true,
+        "FechaUso": "2026-10-03T00:13:07.9144168-03:00",
+        "Cancelada": false
+      },
+      {
+        "Codigo": "6VE2VG",
+        "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "NombreEvento": "Concierto Sunset 2026",
+        "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "NombreModalidad": "Campo general",
+        "IdCompra": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+        "PrecioUnitario": 17000.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "J6S412",
+        "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "NombreEvento": "Concierto Sunset 2026",
+        "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "NombreModalidad": "Campo general",
+        "IdCompra": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+        "PrecioUnitario": 17000.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "7YSEHD",
+        "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "NombreEvento": "Concierto Sunset 2026",
+        "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "NombreModalidad": "Campo general",
+        "IdCompra": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+        "PrecioUnitario": 17000.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "7ELMJ4",
+        "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "NombreEvento": "Concierto Sunset 2026",
+        "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "NombreModalidad": "Campo general",
+        "IdCompra": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+        "PrecioUnitario": 17000.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "1C6A4G",
+        "IdEvento": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "NombreEvento": "Concierto Sunset 2026",
+        "IdModalidad": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "NombreModalidad": "Campo general",
+        "IdCompra": "80168776-cb6b-4d1e-a0ca-6d63e3727aa9",
+        "PrecioUnitario": 17000.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      }
+    ]
   }
 ]

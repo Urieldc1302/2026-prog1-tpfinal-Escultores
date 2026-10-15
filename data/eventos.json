@@ -26,6 +26,15 @@
         "CupoMaximo": 30,
         "CupoDisponible": 30,
         "Cancelada": false
+      },
+      {
+        "Id": "c7ac71bb-8959-43c0-b965-71093392d6b4",
+        "Nombre": "General",
+        "Precio": 12000.0,
+        "Beneficios": "Acceso rápido",
+        "CupoMaximo": 100,
+        "CupoDisponible": 100,
+        "Cancelada": false
       }
     ]
   },
@@ -88,5 +97,37 @@
         "Cancelada": false
       }
     ]
+  },
+  {
+    "Id": "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+    "Nombre": "Concierto Sunset 2026",
+    "Descripcion": "Concierto al aire libre con barra y música",
+    "Fecha": "2026-11-30T03:10:00Z",
+    "Lugar": "Ubicacion (-34.6726, -58.3999)",
+    "Latitud": -34.67262,
+    "Longitud": -58.399914,
+    "Cancelado": true,
+    "Modalidades": [
+      {
+        "Id": "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+        "Nombre": "Campo general",
+        "Precio": 20000.0,
+        "Beneficios": "Consumición  gratuita",
+        "CupoMaximo": 150,
+        "CupoDisponible": 144,
+        "Cancelada": false
+      }
+    ]
+  },
+  {
+    "Id": "793f2b17-3da7-4d9c-987a-2f09db7e083b",
+    "Nombre": "Concierto Sunset 2026",
+    "Descripcion": "Evento al aire libre con barra y música",
+    "Fecha": "2026-12-25T03:14:00Z",
+    "Lugar": "Ubicacion (-34.6362, -58.4003)",
+    "Latitud": -34.636181,
+    "Longitud": -58.400334,
+    "Cancelado": false,
+    "Modalidades": []
   }
 ]
