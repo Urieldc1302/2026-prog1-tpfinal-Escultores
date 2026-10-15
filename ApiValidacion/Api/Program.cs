@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
+using ValidacionEventos.Api.DTOs;
+using ValidacionEventos.Data;
 using ValidacionEventos.Logica;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +11,18 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = contexto =>
+    {
+        var mensajes = contexto.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage);
+        return new BadRequestObjectResult(
+            new ValidacionResponse(false, "DatosInvalidos", string.Join(" ", mensajes), null, null, null, null));
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -30,6 +45,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<IValidacionCompraRepository, ValidacionCompraRepository>();
+builder.Services.AddSingleton<IValidacionEventoRepository, ValidacionEventoRepository>();
 builder.Services.AddSingleton<ValidadorEntradaService>();
 
 var app = builder.Build();
