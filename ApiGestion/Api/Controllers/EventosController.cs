@@ -14,10 +14,6 @@ public class EventosController : BaseApiController
         _eventoService = eventoService;
     }
 
-    /// <summary>
-    /// Catálogo. Por defecto lista solo lo que se puede comprar (eventos no cancelados y que todavía no
-    /// ocurrieron). Con ?incluirNoDisponibles=true también devuelve los cancelados y los ya pasados.
-    /// </summary>
     [HttpGet]
     public IActionResult ObtenerEventos([FromQuery] bool incluirNoDisponibles = false)
     {
@@ -34,7 +30,6 @@ public class EventosController : BaseApiController
         return Ejecutar(() => Ok(_eventoService.ObtenerParaGestion(ObtenerDni()).Select(e => e.AResponse()).ToList()));
     }
 
-    /// <summary>Detalle con sus modalidades. Existe para cualquier evento, también cancelado o pasado.</summary>
     [HttpGet("{id:guid}")]
     public IActionResult ObtenerPorId(Guid id)
     {

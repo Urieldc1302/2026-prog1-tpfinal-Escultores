@@ -12,7 +12,6 @@ public class Entrada
     [JsonProperty] public string NombreModalidad { get; private set; } = string.Empty;
     [JsonProperty] public Guid IdCompra { get; private set; }
 
-    /// <summary>Precio efectivamente pagado por esta entrada (ya con el descuento por volumen).</summary>
     [JsonProperty] public decimal PrecioUnitario { get; private set; }
 
     [JsonProperty] public bool Usada { get; private set; }

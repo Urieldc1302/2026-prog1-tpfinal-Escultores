@@ -968,9 +968,17 @@ async function inicializarGestionEventos() {
 
 async function cargarEventosGestion() {
   try {
-    const res = await fetch(`${API_GESTION}/eventos`);
-    if (!res.ok) throw new Error("Error al obtener eventos.");
+    const res = await fetch(`${API_GESTION}/eventos`, {
+      headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" }
+    });
+    if (!res.ok) throw new Error("Error al obtener eventos para gestión.");
     state.eventos = await res.json();
+    if (state.eventos.length === 0) {
+      ["modalidadEventoSelect", "cancelarEventoSelect"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.innerHTML = "<option value=''>No hay eventos cargados</option>";
+      });
+    }
 
     const selects = ["modalidadEventoSelect", "cancelarEventoSelect"];
     selects.forEach(id => {
@@ -989,10 +997,9 @@ async function cargarEventosGestion() {
   } catch (err) {
     console.error("Error al cargar eventos para gestion:", err);
   }
+}
 
-  }
-
-  async function crearNuevoEvento(e) {
+async function crearNuevoEvento(e) {
   e.preventDefault();
 
   if (state.usuarioActivo?.rol !== "Organizador") {
@@ -1041,6 +1048,8 @@ async function cargarEventosGestion() {
     const inputLng = document.getElementById("nuevoEventoLongitud");
     if (inputLat) inputLat.value = "-34.6037";
     if (inputLng) inputLng.value = "-58.3816";
+    const mapa = document.getElementById("mapaCrearEvento")?.querySelector("iframe");
+    if (mapa) mapa.src = crearUrlMapaGoogle(-34.6037, -58.3816, 13);
 
     await cargarEventosGestion();
 
@@ -1223,57 +1232,49 @@ function renderizarModalidadesParaCancelar() {
 }
 
 function inicializarMapaCrearEvento() {
-  setTimeout(() => {
-    const mapDiv = document.getElementById("mapaCrearEvento");
-    if (!mapDiv) return;
+  const mapDiv = document.getElementById("mapaCrearEvento");
+  if (!mapDiv) return;
 
-    let defaultLat = parseFloat(document.getElementById("nuevoEventoLatitud")?.value) || -34.6037;
-    let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
+  const latInput = document.getElementById("nuevoEventoLatitud");
+  const lngInput = document.getElementById("nuevoEventoLongitud");
+  const lat = Number.parseFloat(latInput?.value) || -34.6037;
+  const lng = Number.parseFloat(lngInput?.value) || -58.3816;
 
-    if (!state.mapaCrearEvento) {
-      state.mapaCrearEvento = L.map('mapaCrearEvento', { attributionControl: false }).setView([defaultLat, defaultLng], 13);
+  mapDiv.innerHTML = `
+    <iframe title="Vista previa de Google Maps"
+      src="${crearUrlMapaGoogle(lat, lng, 13)}"
+      width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
+      loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
 
-      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-      });
-      googleCalles.addTo(state.mapaCrearEvento);
-
-      state.markerCrearEvento = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.mapaCrearEvento);
-
-      state.markerCrearEvento.on('dragend', function (event) {
-        const marker = event.target;
-        const position = marker.getLatLng();
-        actualizarUbicacionSeleccionada(position.lat, position.lng, true);
-      });
-
-      state.mapaCrearEvento.on('click', function (e) {
-        state.markerCrearEvento.setLatLng(e.latlng);
-        actualizarUbicacionSeleccionada(e.latlng.lat, e.latlng.lng, true);
-      });
-    } else {
-      state.mapaCrearEvento.invalidateSize();
-      state.mapaCrearEvento.setView([defaultLat, defaultLng], 13);
-      if (state.markerCrearEvento) {
-        state.markerCrearEvento.setLatLng([defaultLat, defaultLng]);
-      }
+  const actualizarDesdeInputs = () => {
+    const nuevaLat = Number.parseFloat(latInput?.value);
+    const nuevaLng = Number.parseFloat(lngInput?.value);
+    if (Number.isFinite(nuevaLat) && Number.isFinite(nuevaLng)) {
+      mapDiv.querySelector("iframe").src = crearUrlMapaGoogle(nuevaLat, nuevaLng, 13);
     }
-  }, 150);
+  };
+
+  latInput?.addEventListener("change", actualizarDesdeInputs);
+  lngInput?.addEventListener("change", actualizarDesdeInputs);
 }
 
 function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
   const inputLat = document.getElementById("nuevoEventoLatitud");
   const inputLng = document.getElementById("nuevoEventoLongitud");
 
-  if (inputLat) inputLat.value = lat.toFixed(6);
-  if (inputLng) inputLng.value = lng.toFixed(6);
+  if (inputLat) inputLat.value = Number(lat).toFixed(6);
+  if (inputLng) inputLng.value = Number(lng).toFixed(6);
 
   if (buscarNombre) {
     const inputLugar = document.getElementById("nuevoEventoLugar");
     if (inputLugar && !inputLugar.value.trim()) {
-      inputLugar.value = `Ubicacion (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      inputLugar.value = `Ubicación (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})`;
     }
   }
+
+  const mapDiv = document.getElementById("mapaCrearEvento");
+  const iframe = mapDiv?.querySelector("iframe");
+  if (iframe) iframe.src = crearUrlMapaGoogle(Number(lat), Number(lng), 15);
 }
 
 async function buscarLugarEnMapa() {
@@ -1299,24 +1300,18 @@ async function buscarLugarEnMapa() {
     const data = await res.json();
 
     if (!data || data.length === 0) {
-      alert(`No se encontraron coordenadas para "${query}". Puede hacer clic en el mapa para marcar la ubicacion.`);
+      alert(`No se encontraron coordenadas para "${query}". Revise la dirección o ingrese las coordenadas manualmente.`);
       return;
     }
 
     const lat = parseFloat(data[0].lat);
     const lon = parseFloat(data[0].lon);
 
-    if (state.mapaCrearEvento && state.markerCrearEvento) {
-      state.mapaCrearEvento.setView([lat, lon], 15);
-      state.markerCrearEvento.setLatLng([lat, lon]);
-      state.markerCrearEvento.bindPopup(`<strong>Ubicacion seleccionada:</strong><br>${data[0].display_name}`).openPopup();
-    }
-
     actualizarUbicacionSeleccionada(lat, lon, false);
 
   } catch (err) {
     console.error("Error al buscar en mapa:", err);
-    alert("No se pudo conectar con el servicio de busqueda. Puede posicionar el marcador haciendo clic en el mapa.");
+    alert("No se pudo conectar con el servicio de busqueda. Puede ingresar la latitud y longitud manualmente.");
   } finally {
     if (btnBuscar) {
       btnBuscar.disabled = false;

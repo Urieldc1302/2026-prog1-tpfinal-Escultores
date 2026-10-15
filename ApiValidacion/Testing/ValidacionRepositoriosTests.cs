@@ -114,7 +114,6 @@ public class ValidacionRepositoriosTests
         var primero = new ValidadorEntradaService(new ValidacionCompraRepository(_rutaCompras), new ValidacionEventoRepository(_rutaEventos));
         primero.ValidarEntrada("AAA111", Guid.Parse(IdEvento));
 
-        // Equivale a reiniciar la API: instancias nuevas que leen el archivo.
         var reiniciado = new ValidadorEntradaService(new ValidacionCompraRepository(_rutaCompras), new ValidacionEventoRepository(_rutaEventos));
         var resultado = reiniciado.ValidarEntrada("AAA111", Guid.Parse(IdEvento));
 

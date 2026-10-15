@@ -3,7 +3,6 @@ using ValidacionEventos.Dominio;
 
 namespace Testing;
 
-/// <summary>Repositorio de compras en memoria: los tests de la lógica no tocan el disco.</summary>
 public class CompraRepositorioFalso : IValidacionCompraRepository
 {
     public List<Compra> Compras { get; set; } = new List<Compra>();
@@ -18,7 +17,6 @@ public class CompraRepositorioFalso : IValidacionCompraRepository
     }
 }
 
-/// <summary>Repositorio de eventos en memoria.</summary>
 public class EventoRepositorioFalso : IValidacionEventoRepository
 {
     public List<Evento> Eventos { get; set; } = new List<Evento>();
