@@ -364,50 +364,20 @@ function renderDetalleEvento(evento) {
 }
 
 function renderizarMapa(lat, lng, titulo, lugar) {
-  const defaultLat = -34.6037;
-  const defaultLng = -58.3816;
-  const finalLat = (lat !== null && lat !== undefined && !isNaN(lat)) ? lat : defaultLat;
-  const finalLng = (lng !== null && lng !== undefined && !isNaN(lng)) ? lng : defaultLng;
+  const finalLat = (lat !== null && lat !== undefined && !Number.isNaN(Number(lat))) ? Number(lat) : -34.6037;
+  const finalLng = (lng !== null && lng !== undefined && !Number.isNaN(Number(lng))) ? Number(lng) : -58.3816;
 
-  setTimeout(() => {
-    const mapDiv = document.getElementById("mapContainer");
-    if (!mapDiv) return;
+  const mapDiv = document.getElementById("mapContainer");
+  if (!mapDiv) return;
 
-    if (!state.leafletMap) {
-      state.leafletMap = L.map('mapContainer', { attributionControl: false }).setView([finalLat, finalLng], 15);
-
-      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-      });
-      const googleSatelite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-      });
-
-      googleCalles.addTo(state.leafletMap);
-      L.control.layers({ "Google Maps (Calles)": googleCalles, "Google Maps (Satelite)": googleSatelite }, null, { position: 'topright' }).addTo(state.leafletMap);
-    } else {
-      state.leafletMap.invalidateSize();
-      state.leafletMap.setView([finalLat, finalLng], 15);
-    }
-
-    if (state.mapMarker) {
-      state.leafletMap.removeLayer(state.mapMarker);
-    }
-
-    const gmapsLink = `https://www.google.com/maps/search/?api=1&query=${finalLat},${finalLng}`;
-    state.mapMarker = L.marker([finalLat, finalLng]).addTo(state.leafletMap);
-    state.mapMarker.bindPopup(`
-      <div style="min-width: 180px; padding: 2px;">
-        <strong>${titulo}</strong><br>
-        <span style="color: #64748b; font-size: 0.825rem; display: block; margin: 0.25rem 0;">${lugar}</span>
-        <a href="${gmapsLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; font-size: 0.8rem; text-decoration: underline;">
-          Abrir en Google Maps
-        </a>
-      </div>
-    `).openPopup();
-  }, 100);
+  mapDiv.innerHTML = `
+    <iframe
+      title="Mapa de ubicación del evento"
+      src="${crearUrlMapaGoogle(finalLat, finalLng)}"
+      width="100%" height="100%" style="border:0; min-height:280px; border-radius:12px;"
+      loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      allowfullscreen>
+    </iframe>`;
 }
 
 function actualizarInfoModalidadSeleccionada() {
@@ -545,7 +515,6 @@ async function procesarCompra() {
 
   try {
     const payload = {
-      dniComprador: state.usuarioActivo.dni.toString(),
       idEvento: state.eventoSeleccionado.id,
       idModalidad: modId,
       cantidad: cantidad
@@ -636,7 +605,9 @@ async function buscarCompra(compraIdManual = null) {
   }
 
   try {
-    const res = await fetch(`${API_GESTION}/compras/${id}`);
+    const res = await fetch(`${API_GESTION}/compras/${id}`, {
+      headers: { "X-Dni": state.usuarioActivo?.dni || "" }
+    });
     if (!res.ok) {
       if (res.status === 404) throw new Error("Compra no encontrada.");
       throw new Error("Error al consultar la compra.");
@@ -684,7 +655,7 @@ function renderizarDetalleCompra(compra) {
     }
 
     let btnCancelarHtml = "-";
-    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
+    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada ) {
       btnCancelarHtml = `
         <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
           Cancelar Entrada
@@ -749,7 +720,9 @@ async function actualizarMisComprasRapidas() {
   cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>Cargando compras del usuario...</span>";
 
   try {
-    const res = await fetch(`${API_GESTION}/compras?dni=${state.usuarioActivo.dni}`);
+    const res = await fetch(`${API_GESTION}/compras?dni=${encodeURIComponent(state.usuarioActivo.dni)}`, {
+      headers: { "X-Dni": state.usuarioActivo.dni.toString() }
+    });
     if (!res.ok) throw new Error("Error al obtener compras.");
     const comprasUsuario = await res.json();
 
@@ -784,7 +757,7 @@ async function inicializarPuerta() {
       state.eventos = await res.json();
       const sel = document.getElementById("puertaEventoSelect");
       if (sel) {
-        sel.innerHTML = `<option value="">Cualquier evento (autodetectar)</option>`;
+        sel.innerHTML = `<option value="">Seleccione el evento a controlar</option>`;
         state.eventos.forEach(ev => {
           const opt = document.createElement("option");
           opt.value = ev.id;
@@ -817,6 +790,12 @@ async function validarEntradaEnPuerta() {
   const codigo = input.value.trim().toUpperCase();
   const selectEvento = document.getElementById("puertaEventoSelect");
   const idEvento = selectEvento.value || null;
+
+  if (!idEvento) {
+    alert("Seleccione el evento que está controlando antes de validar una entrada.");
+    selectEvento.focus();
+    return;
+  }
 
   if (!codigo) {
     alert("Por favor ingrese el codigo de 6 caracteres de la entrada.");
