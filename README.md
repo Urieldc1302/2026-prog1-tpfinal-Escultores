@@ -37,7 +37,7 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
 ## Estructura del Repositorio
 
 ```text
-programacionTrabajo/
+.
 ├── ApiGestion/                 # Solución 1: API de Gestión y Ventas
 │   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5001)
 │   ├── Clases/                 # Lógica de dominio, repositorios, generador de códigos
@@ -80,10 +80,10 @@ Para verificar que toda la lógica de negocio y las reglas están en verde:
 
 ```bash
 # Tests de ApiGestion (12 pruebas unitarias)
-dotnet test programacionTrabajo/ApiGestion/Solucion.sln
+dotnet test ApiGestion/Solucion.sln
 
 # Tests de ApiValidacion (7 pruebas unitarias)
-dotnet test programacionTrabajo/ApiValidacion/Solucion.sln
+dotnet test ApiValidacion/Solucion.sln
 ```
 
 ---
@@ -94,14 +94,14 @@ Abra dos terminales separadas en la raíz del proyecto:
 
 #### Terminal 1 — API de Gestión (Puerto 5001):
 ```bash
-cd programacionTrabajo/ApiGestion/Api
+cd ApiGestion/Api
 dotnet run
 ```
 > Swagger UI disponible en: **http://localhost:5001/swagger**
 
 #### Terminal 2 — API de Validación (Puerto 5002):
 ```bash
-cd programacionTrabajo/ApiValidacion/Api
+cd ApiValidacion/Api
 dotnet run
 ```
 > Swagger UI disponible en: **http://localhost:5002/swagger**
@@ -110,7 +110,7 @@ dotnet run
 
 ### Paso 3: Abrir el Frontend
 
-Abra directamente el archivo `programacionTrabajo/CarpetaFrontend/index.html` en su navegador (haciendo doble clic o con una extensión como Live Server).
+Abra directamente el archivo `CarpetaFrontend/index.html` en su navegador (haciendo doble clic o con una extensión como Live Server), o acceda a **http://localhost:5001** que sirve los archivos estáticos automáticamente.
 
 ---
 

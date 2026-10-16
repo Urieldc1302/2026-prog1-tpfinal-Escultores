@@ -1,5 +1,5 @@
-const API_GESTION = "http://localhost:5092/api";
-const API_VALIDACION = "http://localhost:5291/api";
+const API_GESTION = "http://localhost:5001/api";
+const API_VALIDACION = "http://localhost:5002/api";
 
 const state = {
   usuarios: [],
@@ -8,10 +8,6 @@ const state = {
   eventoSeleccionado: null,
   compraActual: null,
   historialValidaciones: [],
-  leafletMap: null,
-  mapMarker: null,
-  mapaCrearEvento: null,
-  markerCrearEvento: null
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -107,6 +103,11 @@ function seleccionarUsuario(usuario) {
     }
   }
 
+  const chkNoDisponibles = document.getElementById("chkIncluirNoDisponibles");
+  if (chkNoDisponibles && usuario.rol !== "Organizador" && chkNoDisponibles.checked) {
+    chkNoDisponibles.checked = false;
+    cargarEventos();
+  }
   if (document.getElementById("eventsGrid")) {
     renderizarCatalogo();
   }
@@ -120,6 +121,7 @@ function seleccionarUsuario(usuario) {
 
 function setupComun() {
   document.getElementById("btnRefrescarEventos")?.addEventListener("click", cargarEventos);
+  document.getElementById("chkIncluirNoDisponibles")?.addEventListener("change", cargarEventos);
 }
 
 async function cargarEventos() {
@@ -129,7 +131,11 @@ async function cargarEventos() {
   container.innerHTML = "<p class='loading-state'>Cargando eventos...</p>";
 
   try {
-    const res = await fetch(`${API_GESTION}/eventos`);
+    // Los cancelados y finalizados solo se piden (y el backend solo los entrega) para un organizador.
+    const esOrganizador = state.usuarioActivo?.rol === "Organizador";
+    const incluirTodos = esOrganizador && document.getElementById("chkIncluirNoDisponibles")?.checked;
+    const url = incluirTodos ? `${API_GESTION}/eventos?incluirNoDisponibles=true` : `${API_GESTION}/eventos`;
+    const res = await fetch(url, { headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" } });
     if (!res.ok) throw new Error("Error al obtener eventos.");
     state.eventos = await res.json();
     renderizarCatalogo();
@@ -229,7 +235,7 @@ function renderizarCatalogo() {
         <a href="comprar-entrada.html?id=${ev.id}" class="btn ${ev.cancelado || esPasado ? 'btn-outline' : 'btn-primary'} btn-block">
           ${textoBoton}
         </a>
-        ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado ? `
+        ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado && !esPasado ? `
           <button type="button" class="btn btn-danger btn-sm btn-cancelar-card" data-id="${ev.id}" data-nombre="${ev.nombre}" title="Cancelar Evento">
             Cancelar
           </button>
@@ -292,7 +298,7 @@ function renderDetalleEvento(evento) {
 
   const btnCancEv = document.getElementById("btnCancelarEventoDetalle");
   if (btnCancEv) {
-    if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado) {
+    if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado && !esPasado) {
       btnCancEv.style.display = "inline-flex";
       btnCancEv.onclick = () => cancelarEvento(evento.id, evento.nombre);
     } else {
@@ -326,9 +332,9 @@ function renderDetalleEvento(evento) {
     evento.modalidades.forEach(m => {
       const opt = document.createElement("option");
       opt.value = m.id;
-      const estadoTxt = m.cancelada ? ' [CANCELADA]' : ` (Disponibles: ${m.cupoDisponible})`;
+      const estadoTxt = m.cancelada ? ' [CANCELADA]' : (m.cupoDisponible <= 0 ? ' [SIN CUPO]' : ` (Disponibles: ${m.cupoDisponible})`);
       opt.textContent = `${m.nombre} - $${m.precio.toLocaleString('es-AR')}${estadoTxt}`;
-      if ((m.cancelada || esPasado || evento.cancelado) && state.usuarioActivo?.rol === "Comprador") {
+      if ((m.cancelada || m.cupoDisponible <= 0 || esPasado || evento.cancelado) && state.usuarioActivo?.rol === "Comprador") {
         opt.disabled = true;
       }
       selectMod.appendChild(opt);
@@ -361,6 +367,12 @@ function renderDetalleEvento(evento) {
   if (btnConfirmar) btnConfirmar.onclick = procesarCompra;
 
   calcularPrecioCompra();
+}
+
+function crearUrlMapaGoogle(lat, lng, zoom = 15) {
+  const latitud = Number.isFinite(Number(lat)) ? Number(lat) : -34.6037;
+  const longitud = Number.isFinite(Number(lng)) ? Number(lng) : -58.3816;
+  return `https://maps.google.com/maps?q=${latitud},${longitud}&z=${zoom}&output=embed`;
 }
 
 function renderizarMapa(lat, lng, titulo, lugar) {
@@ -655,7 +667,7 @@ function renderizarDetalleCompra(compra) {
     }
 
     let btnCancelarHtml = "-";
-    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada ) {
+    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
       btnCancelarHtml = `
         <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
           Cancelar Entrada
@@ -1374,7 +1386,7 @@ async function cargarReporteRecaudacion() {
         compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
       }
 
-      let btnCancelarHtml = !ev.cancelado 
+      let btnCancelarHtml = !ev.cancelado
         ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
         : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
 
