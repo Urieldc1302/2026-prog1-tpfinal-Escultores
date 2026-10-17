@@ -79,10 +79,8 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
 Para verificar que toda la lógica de negocio y las reglas están en verde:
 
 ```bash
-# Tests de ApiGestion (12 pruebas unitarias)
 dotnet test ApiGestion/Solucion.sln
 
-# Tests de ApiValidacion (7 pruebas unitarias)
 dotnet test ApiValidacion/Solucion.sln
 ```
 
@@ -174,3 +172,5 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 9. **Control de Acceso por Roles:** Los endpoints administrativos (`POST /api/eventos`, `PUT /cancelar`, `/modalidades`, `/reportes/recaudacion`) exigen DNI de un usuario con rol `Organizador` (vía Header `X-Dni`). Si se envía el DNI de un `Comprador`, el servidor responde `403 Forbidden`.
 
 ---
+
+## Link al Video Demo (https://drive.google.com/file/d/1-2FuJ2cG8K09oveOL-iZXee2Gz38XIQQ/view?usp=drive_link) 

@@ -129,5 +129,26 @@
     "Longitud": -58.400334,
     "Cancelado": false,
     "Modalidades": []
+  },
+  {
+    "Id": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+    "Nombre": "concierto de rock",
+    "Descripcion": "musica",
+    "Fecha": "2026-10-31T21:21:00Z",
+    "Lugar": "plaza 25 de mayo rafaela",
+    "Latitud": -31.252695,
+    "Longitud": -61.491721,
+    "Cancelado": false,
+    "Modalidades": [
+      {
+        "Id": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+        "Nombre": "platea",
+        "Precio": 2000.0,
+        "Beneficios": "consumiciones gratis",
+        "CupoMaximo": 30,
+        "CupoDisponible": 25,
+        "Cancelada": false
+      }
+    ]
   }
 ]

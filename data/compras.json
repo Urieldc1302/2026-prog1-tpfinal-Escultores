@@ -158,5 +158,79 @@
         "Cancelada": false
       }
     ]
+  },
+  {
+    "Id": "0f1ca163-7bf5-494e-b1a2-5d993d7b3d44",
+    "DniComprador": "40123456",
+    "FechaCompra": "2026-10-17T15:19:16.4592382-03:00",
+    "IdEvento": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+    "NombreEvento": "concierto de rock",
+    "IdModalidad": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+    "NombreModalidad": "platea",
+    "Cantidad": 5,
+    "PrecioUnitario": 2000.0,
+    "Total": 8500.00,
+    "Entradas": [
+      {
+        "Codigo": "UNN53M",
+        "IdEvento": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+        "NombreEvento": "concierto de rock",
+        "IdModalidad": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+        "NombreModalidad": "platea",
+        "IdCompra": "0f1ca163-7bf5-494e-b1a2-5d993d7b3d44",
+        "PrecioUnitario": 1700.00,
+        "Usada": true,
+        "FechaUso": "2026-10-17T15:19:32.8166085-03:00",
+        "Cancelada": false
+      },
+      {
+        "Codigo": "IMZLX6",
+        "IdEvento": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+        "NombreEvento": "concierto de rock",
+        "IdModalidad": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+        "NombreModalidad": "platea",
+        "IdCompra": "0f1ca163-7bf5-494e-b1a2-5d993d7b3d44",
+        "PrecioUnitario": 1700.00,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "XN39MZ",
+        "IdEvento": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+        "NombreEvento": "concierto de rock",
+        "IdModalidad": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+        "NombreModalidad": "platea",
+        "IdCompra": "0f1ca163-7bf5-494e-b1a2-5d993d7b3d44",
+        "PrecioUnitario": 1700.00,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "XCB2DC",
+        "IdEvento": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+        "NombreEvento": "concierto de rock",
+        "IdModalidad": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+        "NombreModalidad": "platea",
+        "IdCompra": "0f1ca163-7bf5-494e-b1a2-5d993d7b3d44",
+        "PrecioUnitario": 1700.00,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "YELRDU",
+        "IdEvento": "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+        "NombreEvento": "concierto de rock",
+        "IdModalidad": "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+        "NombreModalidad": "platea",
+        "IdCompra": "0f1ca163-7bf5-494e-b1a2-5d993d7b3d44",
+        "PrecioUnitario": 1700.00,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      }
+    ]
   }
 ]
