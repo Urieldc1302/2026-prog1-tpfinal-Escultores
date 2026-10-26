@@ -353,9 +353,13 @@ function renderDetalleEvento(evento) {
 
   const btnGmaps = document.getElementById("btnAbrirGoogleMapsExt");
   if (btnGmaps) {
-    const lat = evento.latitud || -34.6037;
-    const lng = evento.longitud || -58.3816;
-    btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    if (tieneCoordenadas(evento.latitud, evento.longitud)) {
+      btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${evento.latitud},${evento.longitud}`;
+      btnGmaps.style.display = "";
+    } else {
+      btnGmaps.removeAttribute("href");
+      btnGmaps.style.display = "none";
+    }
   }
 
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
@@ -369,23 +373,32 @@ function renderDetalleEvento(evento) {
   calcularPrecioCompra();
 }
 
+function tieneCoordenadas(lat, lng) {
+  const esNumero = (v) => v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v));
+  return esNumero(lat) && esNumero(lng);
+}
+
 function crearUrlMapaGoogle(lat, lng, zoom = 15) {
-  const latitud = Number.isFinite(Number(lat)) ? Number(lat) : -34.6037;
-  const longitud = Number.isFinite(Number(lng)) ? Number(lng) : -58.3816;
-  return `https://maps.google.com/maps?q=${latitud},${longitud}&z=${zoom}&output=embed`;
+  return `https://maps.google.com/maps?q=${Number(lat)},${Number(lng)}&z=${zoom}&output=embed`;
+}
+
+function htmlUbicacionNoDisponible(alto, texto = "Ubicación no disponible") {
+  return `<div style="display:flex; align-items:center; justify-content:center; min-height:${alto}px; border-radius:12px; background:var(--slate-100); color:var(--slate-500); text-align:center; padding:1rem;">${texto}</div>`;
 }
 
 function renderizarMapa(lat, lng, titulo, lugar) {
-  const finalLat = (lat !== null && lat !== undefined && !Number.isNaN(Number(lat))) ? Number(lat) : -34.6037;
-  const finalLng = (lng !== null && lng !== undefined && !Number.isNaN(Number(lng))) ? Number(lng) : -58.3816;
-
   const mapDiv = document.getElementById("mapContainer");
   if (!mapDiv) return;
+
+  if (!tieneCoordenadas(lat, lng)) {
+    mapDiv.innerHTML = htmlUbicacionNoDisponible(280);
+    return;
+  }
 
   mapDiv.innerHTML = `
     <iframe
       title="Mapa de ubicación del evento"
-      src="${crearUrlMapaGoogle(finalLat, finalLng)}"
+      src="${crearUrlMapaGoogle(lat, lng)}"
       width="100%" height="100%" style="border:0; min-height:280px; border-radius:12px;"
       loading="lazy" referrerpolicy="no-referrer-when-downgrade"
       allowfullscreen>
@@ -946,6 +959,11 @@ async function inicializarGestionEventos() {
   document.getElementById("formCrearEvento")?.addEventListener("submit", crearNuevoEvento);
   document.getElementById("formAgregarModalidad")?.addEventListener("submit", agregarModalidadAEvento);
   document.getElementById("btnBuscarLugarMapa")?.addEventListener("click", buscarLugarEnMapa);
+  document.getElementById("nuevoEventoLugar")?.addEventListener("input", () => {
+    document.getElementById("nuevoEventoLatitud").value = "";
+    document.getElementById("nuevoEventoLongitud").value = "";
+    inicializarMapaCrearEvento();
+  });
 
   document.getElementById("cancelarEventoSelect")?.addEventListener("change", renderizarModalidadesParaCancelar);
   document.getElementById("btnCancelarEventoSeleccionado")?.addEventListener("click", () => {
@@ -1002,13 +1020,22 @@ async function crearNuevoEvento(e) {
   const descripcion = document.getElementById("nuevoEventoDescripcion").value.trim();
   const fecha = document.getElementById("nuevoEventoFecha").value;
   const lugar = document.getElementById("nuevoEventoLugar").value.trim();
-  const latitud = parseFloat(document.getElementById("nuevoEventoLatitud").value) || -34.6037;
-  const longitud = parseFloat(document.getElementById("nuevoEventoLongitud").value) || -58.3816;
+  const valorLat = document.getElementById("nuevoEventoLatitud").value;
+  const valorLng = document.getElementById("nuevoEventoLongitud").value;
 
   if (!nombre || !fecha || !lugar) {
     alert("Complete los campos obligatorios: Nombre, Fecha y Lugar.");
     return;
   }
+
+  if (!tieneCoordenadas(valorLat, valorLng)) {
+    alert("Antes de crear el evento, busque la dirección con \"Buscar en Mapa\" para ubicarlo en el mapa.");
+    document.getElementById("btnBuscarLugarMapa")?.focus();
+    return;
+  }
+
+  const latitud = parseFloat(valorLat);
+  const longitud = parseFloat(valorLng);
 
   try {
     const payload = {
@@ -1037,10 +1064,9 @@ async function crearNuevoEvento(e) {
 
     const inputLat = document.getElementById("nuevoEventoLatitud");
     const inputLng = document.getElementById("nuevoEventoLongitud");
-    if (inputLat) inputLat.value = "-34.6037";
-    if (inputLng) inputLng.value = "-58.3816";
-    const mapa = document.getElementById("mapaCrearEvento")?.querySelector("iframe");
-    if (mapa) mapa.src = crearUrlMapaGoogle(-34.6037, -58.3816, 13);
+    if (inputLat) inputLat.value = "";
+    if (inputLng) inputLng.value = "";
+    inicializarMapaCrearEvento();
 
     await cargarEventosGestion();
 
@@ -1228,25 +1254,16 @@ function inicializarMapaCrearEvento() {
 
   const latInput = document.getElementById("nuevoEventoLatitud");
   const lngInput = document.getElementById("nuevoEventoLongitud");
-  const lat = Number.parseFloat(latInput?.value) || -34.6037;
-  const lng = Number.parseFloat(lngInput?.value) || -58.3816;
 
-  mapDiv.innerHTML = `
-    <iframe title="Vista previa de Google Maps"
-      src="${crearUrlMapaGoogle(lat, lng, 13)}"
-      width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
-      loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
-
-  const actualizarDesdeInputs = () => {
-    const nuevaLat = Number.parseFloat(latInput?.value);
-    const nuevaLng = Number.parseFloat(lngInput?.value);
-    if (Number.isFinite(nuevaLat) && Number.isFinite(nuevaLng)) {
-      mapDiv.querySelector("iframe").src = crearUrlMapaGoogle(nuevaLat, nuevaLng, 13);
-    }
-  };
-
-  latInput?.addEventListener("change", actualizarDesdeInputs);
-  lngInput?.addEventListener("change", actualizarDesdeInputs);
+  if (tieneCoordenadas(latInput?.value, lngInput?.value)) {
+    mapDiv.innerHTML = `
+      <iframe title="Vista previa de Google Maps"
+        src="${crearUrlMapaGoogle(latInput.value, lngInput.value, 15)}"
+        width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
+        loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
+  } else {
+    mapDiv.innerHTML = htmlUbicacionNoDisponible(250, "Escriba la dirección y pulse “Buscar en Mapa”");
+  }
 }
 
 function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
@@ -1263,9 +1280,7 @@ function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
     }
   }
 
-  const mapDiv = document.getElementById("mapaCrearEvento");
-  const iframe = mapDiv?.querySelector("iframe");
-  if (iframe) iframe.src = crearUrlMapaGoogle(Number(lat), Number(lng), 15);
+  inicializarMapaCrearEvento();
 }
 
 async function buscarLugarEnMapa() {
@@ -1291,7 +1306,7 @@ async function buscarLugarEnMapa() {
     const data = await res.json();
 
     if (!data || data.length === 0) {
-      alert(`No se encontraron coordenadas para "${query}". Revise la dirección o ingrese las coordenadas manualmente.`);
+      alert(`No se encontraron coordenadas para "${query}". Revise la dirección e intente con otra descripción (calle, número y ciudad).`);
       return;
     }
 
@@ -1302,7 +1317,7 @@ async function buscarLugarEnMapa() {
 
   } catch (err) {
     console.error("Error al buscar en mapa:", err);
-    alert("No se pudo conectar con el servicio de busqueda. Puede ingresar la latitud y longitud manualmente.");
+    alert("No se pudo conectar con el servicio de búsqueda de direcciones. Revise su conexión e intente nuevamente.");
   } finally {
     if (btnBuscar) {
       btnBuscar.disabled = false;
