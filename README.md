@@ -1,7 +1,7 @@
 # TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
 
 **Materia:** Programación 1 — UCSE  
-**Tecnologías:** C# / .NET 8, ASP.NET Core Web API, NUnit (19 pruebas en verde), Persistencia JSON compartida en disco, HTML5, CSS3, JavaScript nativo (Vanilla JS SPA con Hash Routing), Google Maps (Calles / Satélite).
+**Tecnologías:** C# / .NET 8, ASP.NET Core Web API, NUnit (81 pruebas en verde: 64 en Gestión y 17 en Validación), Persistencia JSON compartida en disco, HTML5, CSS3, JavaScript nativo (sin frameworks, varias páginas HTML), mapa de Google Maps embebido.
 
 ---
 
@@ -24,13 +24,13 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
    - Sincronización inmediata contra los mismos archivos en disco.
 
 3. **Frontend Web (`CarpetaFrontend`):**
-   - Aplicación responsiva construida con HTML5, CSS3 y JavaScript nativo (sin frameworks).
-   - **Arquitectura SPA con Hash Routing (`#...`):** URLs independientes por vista (`#catalogo`, `#evento={id}`, `#consulta-compra`, `#control-acceso`, `#gestion-eventos`, `#reporte-recaudacion`) con soporte completo para historial del navegador (`Atrás`/`Adelante`) y enlaces directos (*deep linking*).
-   - Selector dinámico de usuario activo basado en DNI y validación de roles (**Organizador** vs. **Comprador**).
-   - Catálogo de eventos, vista de detalle con **mapa interactivo de Google Maps (Calles / Satélite sin API Key ni marcas de agua)** y enlace directo a Google Maps.
-   - Pantalla de **Control de Acceso (Puerta)** con semáforo visual grande (Verde / Rojo) e historial de accesos.
-   - Consulta de compras y gestión de estado de cada entrada individual.
-   - Panel de organizador para crear eventos, selector de ubicación en mapa con buscador de direcciones, agregar modalidades, cancelar eventos o modalidades individuales y ver reporte de recaudación con detalle de compradores.
+   - Aplicación construida con HTML5, CSS3 y JavaScript nativo (sin frameworks), formada por **seis páginas HTML independientes** que comparten `app.js` y `styles.css`. Las páginas se pasan datos por *query string* (por ejemplo `comprar-entrada.html?id={idEvento}`); no hay SPA ni *hash routing*.
+   - Selector de usuario activo basado en DNI (guardado en `localStorage`) y menú según el rol (**Organizador** vs. **Comprador**). El DNI se envía a la API en el header `X-Dni`.
+   - **Catálogo** de eventos disponibles y **detalle del evento** con compra de entradas, resumen de precio con descuento y ubicación en un **mapa de Google Maps** (iframe `maps.google.com/maps?q=latitud,longitud&output=embed`, sin API key) con un botón "Ver en Google Maps". Si un evento no tiene coordenadas, se muestra "Ubicación no disponible" en lugar de un mapa.
+   - Pantalla de **Control de Acceso (Puerta)**: se elige el evento, se ingresa el código y se muestra "Acceso autorizado" o "Entrada rechazada" con el motivo, más un historial de la sesión.
+   - **Consulta de compra**: estado de cada entrada (disponible, usada con fecha y hora, o cancelada) y cancelación de entradas sin usar.
+   - **Gestión de eventos** (organizador): alta de eventos, alta de modalidades y cancelación de eventos o modalidades. Para ubicar un evento hay que escribir la dirección y pulsar "Buscar en Mapa" (la búsqueda usa Nominatim de OpenStreetMap y devuelve latitud y longitud); sin esa búsqueda el evento no se puede crear.
+   - **Reporte de recaudación** (organizador) por evento y modalidad, con el listado de compradores.
 
 ---
 
@@ -40,24 +40,29 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
 .
 ├── ApiGestion/                 # Solución 1: API de Gestión y Ventas
 │   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5001)
-│   ├── Clases/                 # Lógica de dominio, repositorios, generador de códigos
-│   ├── Testing/                # Pruebas unitarias NUnit de ApiGestion (12 tests en verde)
+│   ├── Clases/                 # Lógica de dominio, servicios, repositorios, generador de códigos
+│   ├── Testing/                # Pruebas unitarias NUnit de ApiGestion (64 tests en verde)
 │   └── Solucion.sln            # Solución Visual Studio de Gestión
 │
 ├── ApiValidacion/              # Solución 2: API de Validación en Puerta
 │   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5002)
-│   ├── Clases/                 # Lógica del validador de entradas atómico
-│   ├── Testing/                # Pruebas unitarias NUnit de ApiValidacion (7 tests en verde)
+│   ├── Clases/                 # Biblioteca de clases: dominio, repositorios y validador de entradas
+│   ├── Testing/                # Pruebas unitarias NUnit de ApiValidacion (17 tests en verde)
 │   └── Solucion.sln            # Solución Visual Studio de Validación
 │
-├── CarpetaFrontend/            # Frontend Web (Vanilla HTML/CSS/JS SPA)
-│   ├── index.html              # Pantallas del sistema (Catálogo, Puerta, Compras, Admin)
-│   ├── styles.css              # Estilos modernos y responsivos
-│   └── app.js                  # Lógica cliente, SPA Hash Router y mapas Google Maps
+├── CarpetaFrontend/            # Frontend Web (HTML/CSS/JS sin frameworks)
+│   ├── index.html              # Catálogo de eventos
+│   ├── comprar-entrada.html    # Detalle del evento y compra
+│   ├── consultar-compra.html   # Consulta de compra y cancelación de entradas
+│   ├── control-acceso.html     # Control de acceso (puerta)
+│   ├── gestion-eventos.html    # Alta y cancelación de eventos y modalidades
+│   ├── reporte-recaudacion.html# Reporte de recaudación
+│   ├── styles.css              # Estilos
+│   └── app.js                  # Lógica cliente compartida por todas las páginas
 │
 ├── data/                       # Almacenamiento compartido en disco (rutas relativas)
 │   ├── usuarios.json           # 10 usuarios precargados (2 Organizadores, 8 Compradores)
-│   ├── eventos.json            # Eventos, coordenadas y modalidades
+│   ├── eventos.json            # Eventos, coordenadas (latitud y longitud) y modalidades
 │   └── compras.json            # Compras y entradas individuales generadas
 │
 └── README.md                   # Documentación del proyecto
@@ -108,7 +113,7 @@ dotnet run
 
 ### Paso 3: Abrir el Frontend
 
-Abra directamente el archivo `CarpetaFrontend/index.html` en su navegador (haciendo doble clic o con una extensión como Live Server), o acceda a **http://localhost:5001** que sirve los archivos estáticos automáticamente.
+Abra directamente el archivo `CarpetaFrontend/index.html` en su navegador (haciendo doble clic o con una extensión como Live Server), o acceda a **http://localhost:5001**, que sirve los archivos estáticos automáticamente. Las dos APIs tienen que estar levantadas.
 
 ---
 
@@ -138,7 +143,7 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 | Método | Endpoint | Rol Requerido | Descripción |
 |---|---|---|---|
 | `GET` | `/api/usuarios` | — | Lista todos los usuarios precargados. |
-| `GET` | `/api/eventos` | — | Lista los eventos disponibles con sus modalidades. |
+| `GET` | `/api/eventos` | — (con `?incluirNoDisponibles=true`: **Organizador**) | Lista los eventos disponibles (no cancelados ni pasados) con sus modalidades. |
 | `GET` | `/api/eventos/{id}` | — | Detalle de un evento y sus modalidades. |
 | `POST` | `/api/eventos` | **Organizador** (`X-Dni`) | Crea un nuevo evento (soporta coordenadas y dirección). |
 | `PUT` | `/api/eventos/{id}` | **Organizador** (`X-Dni`) | Edita los datos de un evento. |
@@ -147,7 +152,7 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 | `PUT` | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | **Organizador** (`X-Dni`) | Cancela una modalidad específica (bloquea ventas para dicha modalidad). |
 | `POST` | `/api/compras` | **Comprador** (`X-Dni`) | Registra compra, descuenta cupo y genera entradas individuales. |
 | `GET` | `/api/compras/{id}` | — | Consulta detalle de compra y estado de cada entrada. |
-| `GET` | `/api/compras?dni={dni}` | — | Lista compras asociadas a un DNI. |
+| `GET` | `/api/compras` | `X-Dni` | Comprador: lista sus compras. Organizador: lista todas. Sin DNI responde `403`. |
 | `GET` | `/api/reportes/recaudacion` | **Organizador** (`X-Dni`) | Reporte de recaudación y entradas vendidas por evento y modalidad. |
 | `DELETE` | `/api/entradas/{codigo}` | **Comprador** (`X-Dni`) | *(Promoción)* Cancela una entrada no usada y devuelve el cupo. |
 
