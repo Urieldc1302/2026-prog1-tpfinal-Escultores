@@ -777,7 +777,10 @@ async function actualizarMisComprasRapidas() {
 
 async function inicializarPuerta() {
   try {
-    const res = await fetch(`${API_GESTION}/eventos`);
+    // La puerta no usa el catálogo: ese oculta los eventos que ya empezaron, que es justo cuando se controla.
+    const res = await fetch(`${API_GESTION}/eventos/control-acceso`, {
+      headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" }
+    });
     if (res.ok) {
       state.eventos = await res.json();
       const sel = document.getElementById("puertaEventoSelect");
@@ -786,13 +789,21 @@ async function inicializarPuerta() {
         state.eventos.forEach(ev => {
           const opt = document.createElement("option");
           opt.value = ev.id;
-          opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : 'Disponible'})`;
+          const yaEmpezo = new Date(ev.fecha) < new Date();
+          opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : (yaEmpezo ? 'En curso' : 'Próximo')})`;
           sel.appendChild(opt);
         });
+        if (state.eventos.length === 0) {
+          sel.innerHTML = `<option value="">No hay eventos para controlar hoy</option>`;
+        }
       }
+    } else {
+      throw new Error(`La API respondió ${res.status}`);
     }
   } catch (err) {
     console.error("Error al cargar eventos para puerta:", err);
+    const sel = document.getElementById("puertaEventoSelect");
+    if (sel) sel.innerHTML = `<option value="">No se pudieron cargar los eventos (${err.message})</option>`;
   }
 
   document.getElementById("btnValidarEntrada")?.addEventListener("click", validarEntradaEnPuerta);

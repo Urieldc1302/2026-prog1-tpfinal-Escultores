@@ -88,6 +88,72 @@ public class EventoServiceTests : GestionTestBase
     }
 
     [Test]
+    public void ObtenerParaControlDeAcceso_EventoQueYaEmpezoHaceUnaHora_ApareceEnLaPuerta()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Recital", "Desc", Ahora.AddDays(5), "Estadio");
+        AhoraActual = Ahora.AddDays(5).AddHours(1);
+
+        var paraPuerta = EventoSvc.ObtenerParaControlDeAcceso(DniOrganizador);
+
+        Assert.That(paraPuerta.Any(e => e.Id == evento.Id), Is.True);
+    }
+
+    [Test]
+    public void ObtenerParaControlDeAcceso_EventoQueYaEmpezo_NoApareceEnElCatalogo()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Recital", "Desc", Ahora.AddDays(5), "Estadio");
+        AhoraActual = Ahora.AddDays(5).AddHours(1);
+
+        var catalogo = EventoSvc.ObtenerDisponibles();
+
+        Assert.That(catalogo.Any(e => e.Id == evento.Id), Is.False);
+    }
+
+    [Test]
+    public void ObtenerParaControlDeAcceso_EventoFuturo_ApareceEnLaPuerta()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Recital", "Desc", Ahora.AddDays(5), "Estadio");
+
+        var paraPuerta = EventoSvc.ObtenerParaControlDeAcceso(DniOrganizador);
+
+        Assert.That(paraPuerta.Any(e => e.Id == evento.Id), Is.True);
+    }
+
+    [Test]
+    public void ObtenerParaControlDeAcceso_EventoTerminadoHaceMasDeUnDia_NoApareceEnLaPuerta()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Recital", "Desc", Ahora.AddDays(5), "Estadio");
+        AhoraActual = Ahora.AddDays(5).AddHours(Evento.HorasDeControlLuegoDelInicio + 1);
+
+        var paraPuerta = EventoSvc.ObtenerParaControlDeAcceso(DniOrganizador);
+
+        Assert.That(paraPuerta.Any(e => e.Id == evento.Id), Is.False);
+    }
+
+    [Test]
+    public void ObtenerParaControlDeAcceso_EventoCanceladoDentroDeLaVentana_ApareceParaInformarElMotivo()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Recital", "Desc", Ahora.AddDays(5), "Estadio");
+        EventoSvc.Cancelar(DniOrganizador, evento.Id);
+
+        var paraPuerta = EventoSvc.ObtenerParaControlDeAcceso(DniOrganizador);
+
+        Assert.That(paraPuerta.Any(e => e.Id == evento.Id), Is.True);
+    }
+
+    [Test]
+    public void ObtenerParaControlDeAcceso_ComoComprador_LanzaAccesoDenegadoException()
+    {
+        Assert.Throws<AccesoDenegadoException>(() => EventoSvc.ObtenerParaControlDeAcceso(DniComprador));
+    }
+
+    [Test]
+    public void ObtenerParaControlDeAcceso_SinDni_LanzaAccesoDenegadoException()
+    {
+        Assert.Throws<AccesoDenegadoException>(() => EventoSvc.ObtenerParaControlDeAcceso(null));
+    }
+
+    [Test]
     public void ObtenerDisponibles_EventoCancelado_NoApareceEnElCatalogo()
     {
         var evento = EventoSvc.Crear(DniOrganizador, "Expo", "Desc", Ahora.AddDays(5), "Predio");

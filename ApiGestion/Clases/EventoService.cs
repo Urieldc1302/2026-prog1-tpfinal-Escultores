@@ -29,6 +29,13 @@ public class EventoService
         return _eventoRepository.ObtenerEventos();
     }
 
+    public List<Evento> ObtenerParaControlDeAcceso(string? dniSolicitante)
+    {
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+        DateTime ahora = _ahora();
+        return _eventoRepository.ObtenerEventos().Where(e => e.AdmiteControlDeAcceso(ahora)).ToList();
+    }
+
     public List<Evento> ObtenerDisponibles()
     {
         DateTime ahora = _ahora();

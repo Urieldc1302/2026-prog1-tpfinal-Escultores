@@ -144,6 +144,7 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 |---|---|---|---|
 | `GET` | `/api/usuarios` | — | Lista todos los usuarios precargados. |
 | `GET` | `/api/eventos` | — (con `?incluirNoDisponibles=true`: **Organizador**) | Lista los eventos disponibles (no cancelados ni pasados) con sus modalidades. |
+| `GET` | `/api/eventos/control-acceso` | **Organizador** (`X-Dni`) | Eventos para la pantalla de la puerta: los futuros y los que empezaron hace menos de 24 hs (incluye cancelados, para informar el motivo). No usa el filtro del catálogo, que oculta lo que ya empezó. |
 | `GET` | `/api/eventos/{id}` | — | Detalle de un evento y sus modalidades. |
 | `POST` | `/api/eventos` | **Organizador** (`X-Dni`) | Crea un nuevo evento (soporta coordenadas y dirección). |
 | `PUT` | `/api/eventos/{id}` | **Organizador** (`X-Dni`) | Edita los datos de un evento. |

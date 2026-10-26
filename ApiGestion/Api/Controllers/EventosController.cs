@@ -24,6 +24,12 @@ public class EventosController : BaseApiController
         });
     }
 
+    [HttpGet("control-acceso")]
+    public IActionResult ObtenerParaControlDeAcceso()
+    {
+        return Ejecutar(() => Ok(_eventoService.ObtenerParaControlDeAcceso(ObtenerDni()).Select(e => e.AResponse()).ToList()));
+    }
+
     [HttpGet("gestion")]
     public IActionResult ObtenerParaGestion()
     {

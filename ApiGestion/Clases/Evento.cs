@@ -68,6 +68,12 @@ public class Evento
     {
         return ALocal(Fecha) < ahora;
     }
+    public const int HorasDeControlLuegoDelInicio = 24;
+
+    public bool AdmiteControlDeAcceso(DateTime ahora)
+    {
+        return ALocal(Fecha) >= ahora.AddHours(-HorasDeControlLuegoDelInicio);
+    }
 
     public bool EstaDisponible(DateTime ahora)
     {
